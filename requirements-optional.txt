@@ -1,0 +1,3 @@
+# Optional heavier PII engine. The app works without this file.
+presidio-analyzer==2.2.355
+

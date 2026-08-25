@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-gateway-config
+data:
+  APP_ENV: "production"
+  LLM_PROVIDER: "mock"
+  PII_ENGINE: "auto"
+  RATE_LIMIT_BACKEND: "auto"
+  RATE_LIMIT_PER_MINUTE: "60"
+  CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+  PROMPT_INJECTION_BLOCK_THRESHOLD: "70"
+  RESPONSE_SCANNING_ENABLED: "true"
+

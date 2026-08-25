@@ -1,0 +1,12 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+gateway.db
+test_gateway.db
+server.out.log
+server.err.log
+.env
+.git
+

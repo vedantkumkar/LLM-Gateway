@@ -1,0 +1,34 @@
+services:
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: docker
+      DATABASE_URL: postgresql+psycopg://gateway_demo:gateway_demo_password@postgres:5432/llm_gateway
+      LLM_PROVIDER: mock
+      PII_ENGINE: auto
+      RATE_LIMIT_BACKEND: redis
+      RATE_LIMIT_PER_MINUTE: 60
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      PROMPT_INJECTION_BLOCK_THRESHOLD: 70
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: llm_gateway
+      POSTGRES_USER: gateway_demo
+      POSTGRES_PASSWORD: gateway_demo_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  postgres_data:
+
