@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     rate_limit_backend: str = "memory"
     rate_limit_per_minute: int = 60
     redis_url: str = ""
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"
     prompt_injection_block_threshold: int = 70
     pii_action: str = "REDACT_AND_ALLOW"
     secret_action: str = "BLOCK"

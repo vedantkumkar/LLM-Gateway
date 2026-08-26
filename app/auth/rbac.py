@@ -11,7 +11,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
     "security_analyst": {"audit:read_all", "metrics:read", "models:read", "playground:use", "users:read", "policies:read"},
     "developer": {"audit:read_own", "models:read", "playground:use", "policies:read"},
     "employee": {"audit:read_own", "models:read", "playground:use"},
-    "auditor": {"audit:read_all", "policies:read"},
+    "auditor": {"audit:read_all", "metrics:read", "policies:read"},
 }
 
 MODEL_ACCESS: dict[str, set[str]] = {
@@ -39,4 +39,3 @@ def require_permission(permission: str) -> Callable[[User], User]:
 def can_access_model(user: User, model: str) -> bool:
     allowed_roles = MODEL_ACCESS.get(model)
     return user.role == "admin" or (allowed_roles is not None and user.role in allowed_roles)
-
