@@ -12,18 +12,36 @@ class Settings(BaseSettings):
     rate_limit_backend: str = "memory"
     rate_limit_per_minute: int = 60
     redis_url: str = ""
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"
+
+    cors_origins: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "http://localhost:8080,"
+        "http://127.0.0.1:8080,"
+        "https://vedantkumkar.github.io"
+    )
+
     prompt_injection_block_threshold: int = 70
     pii_action: str = "REDACT_AND_ALLOW"
     secret_action: str = "BLOCK"
     response_scanning_enabled: bool = True
-    app_title: str = Field(default="Enterprise LLM & GenAI Security Gateway")
+    app_title: str = Field(
+        default="Enterprise LLM & GenAI Security Gateway"
+    )
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache
