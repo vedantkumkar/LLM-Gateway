@@ -1,0 +1,221 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  Bell,
+  ChevronDown,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+  UserCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { StatusPill } from "@/components/security/badges";
+import { getNotifications } from "@/services/healthService";
+import { getGatewayHealthStatus, logout } from "@/services/authService";
+import { searchWorkspace, type GlobalSearchResult } from "@/services/globalSearchService";
+import type { AppNotification, AuthUser } from "@/types";
+import { cn } from "@/lib/utils";
+
+export function Header({
+  title,
+  user,
+  onOpenMobileNav,
+}: {
+  title: string;
+  user: AuthUser;
+  onOpenMobileNav: () => void;
+}) {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [health, setHealth] = useState<"healthy" | "degraded" | "down">("healthy");
+  const [dark, setDark] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<GlobalSearchResult[]>([]);
+  const [searchMessage, setSearchMessage] = useState("");
+
+  useEffect(() => {
+    void getNotifications().then(setNotifications);
+    void getGatewayHealthStatus().then(setHealth);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
+  const handleLogout = () => {
+    logout();
+    void navigate({ to: "/" });
+  };
+
+  const goToResult = (result: GlobalSearchResult) => {
+    void navigate({
+      to: result.target,
+      search: { q: result.query },
+    } as never);
+  };
+
+  const runSearch = () => {
+    const next = query.trim();
+    if (!next || searching) return;
+    setSearching(true);
+    setSearchMessage("");
+    searchWorkspace(next)
+      .then((matches) => {
+        setResults(matches);
+        if (matches.length === 0) {
+          setSearchMessage("No results");
+          return;
+        }
+        goToResult(matches[0]!);
+      })
+      .catch((e: Error) => {
+        setResults([]);
+        setSearchMessage(e.message);
+      })
+      .finally(() => setSearching(false));
+  };
+
+  return (
+    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
+      <button
+        type="button"
+        onClick={onOpenMobileNav}
+        className="grid size-9 place-items-center rounded-md border border-border lg:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu className="size-4" />
+      </button>
+
+      <h1 className="mr-auto text-base font-semibold tracking-tight">{title}</h1>
+
+      <div className="relative hidden w-72 xl:block">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-9 pl-8 text-sm"
+          placeholder="Search events, users, request IDs..."
+          aria-label="Global search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSearchMessage("");
+            setResults([]);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") runSearch();
+          }}
+        />
+        {(results.length > 0 || searchMessage || searching) && (
+          <div className="absolute top-11 right-0 left-0 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md">
+            {searching && <p className="px-2 py-1.5 text-xs text-muted-foreground">Searching...</p>}
+            {searchMessage && !searching && (
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">{searchMessage}</p>
+            )}
+            {results.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => goToResult(result)}
+                className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+              >
+                <span className="block font-medium">{result.title}</span>
+                <span className="block text-muted-foreground">{result.detail}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <StatusPill tone="info">Demo Environment</StatusPill>
+
+      <span
+        className="hidden items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs sm:flex"
+        title="Gateway health"
+      >
+        <span
+          className={cn(
+            "size-2 rounded-full",
+            health === "healthy" ? "bg-safe" : health === "degraded" ? "bg-warn" : "bg-danger",
+          )}
+          aria-hidden
+        />
+        Gateway {health}
+      </span>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon" className="relative size-9" aria-label="Notifications">
+            <Bell className="size-4" />
+            {notifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-danger text-[10px] font-semibold text-danger-foreground">
+                {notifications.length}
+              </span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuLabel>Security notifications</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {notifications.map((n) => (
+            <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 py-2">
+              <span className="flex w-full items-center justify-between gap-2">
+                <span className="text-xs font-medium">{n.title}</span>
+                <span className="text-[10px] text-muted-foreground">{n.time}</span>
+              </span>
+              <span className="text-[11px] text-muted-foreground">{n.detail}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-9"
+        onClick={() => setDark((d) => !d)}
+        aria-label="Toggle theme"
+      >
+        {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-9 gap-2 px-2">
+            <UserCircle2 className="size-5 text-muted-foreground" />
+            <span className="hidden text-left sm:block">
+              <span className="block text-xs leading-tight font-medium">{user.name}</span>
+              <span className="block text-[10px] leading-tight text-muted-foreground">
+                {user.role}
+              </span>
+            </span>
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="font-normal">
+            <span className="block text-sm font-medium">{user.name}</span>
+            <span className="block text-xs text-muted-foreground">{user.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled>Department · {user.department}</DropdownMenuItem>
+          <DropdownMenuItem disabled>Role · {user.role}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={handleLogout}>
+            <LogOut className="mr-2 size-4" /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+  );
+}
