@@ -10,6 +10,7 @@ class RiskEngine:
             pii_score,
             secret_score,
             injection.score,
+            policy_score,
         )
         overall = min(int(overall), 100)
         explanation = [
@@ -46,4 +47,3 @@ class RiskEngine:
         if score >= 35:
             return "MEDIUM"
         return "LOW"
-

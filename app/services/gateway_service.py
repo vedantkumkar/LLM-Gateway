@@ -36,7 +36,7 @@ class GatewayService:
         pii = self.pii_detector.suppress_overlaps(self.pii_detector.detect(request.message), secrets)
         detections = pii + secrets
         injection = self.injection_detector.analyze(request.message)
-        policy = self.policy_engine.decide(user, request.model, detections, injection)
+        policy = self.policy_engine.decide(user, request.model, request.message, detections, injection)
         risk = self.risk_engine.calculate(detections, injection, policy.policy_score)
         sanitized = self.redactor.redact(request.message, detections) if policy.decision != "ALLOW" else request.message
         return AnalyzeResponse(

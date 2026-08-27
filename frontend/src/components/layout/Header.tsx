@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Bell,
-  ChevronDown,
-  LogOut,
-  Menu,
-  Moon,
-  Search,
-  Sun,
-  UserCircle2,
-} from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +18,20 @@ import { searchWorkspace, type GlobalSearchResult } from "@/services/globalSearc
 import type { AppNotification, AuthUser } from "@/types";
 import { cn } from "@/lib/utils";
 
+const THEME_STORAGE_KEY = "sentinel-theme";
+const NOTIFICATION_READ_KEY_PREFIX = "sentinel-read-notification-ids";
+
+function getReadNotificationIds(userId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const value = window.localStorage.getItem(`${NOTIFICATION_READ_KEY_PREFIX}:${userId}`);
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function Header({
   title,
   user,
@@ -38,21 +43,42 @@ export function Header({
 }) {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [health, setHealth] = useState<"healthy" | "degraded" | "down">("healthy");
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark";
+  });
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
 
   useEffect(() => {
-    void getNotifications().then(setNotifications);
+    void getNotifications().then((items) => {
+      setNotifications(items);
+      const readIds = new Set(getReadNotificationIds(user.id));
+      setUnreadCount(items.filter((item) => !readIds.has(item.id)).length);
+    });
     void getGatewayHealthStatus().then(setHealth);
-  }, []);
+  }, [user.id]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     document.documentElement.classList.toggle("dark", dark);
+    window.localStorage.setItem(THEME_STORAGE_KEY, dark ? "dark" : "light");
   }, [dark]);
+
+  const handleNotificationsOpenChange = (open: boolean) => {
+    if (!open || typeof window === "undefined") return;
+    const key = `${NOTIFICATION_READ_KEY_PREFIX}:${user.id}`;
+    const readIds = new Set(getReadNotificationIds(user.id));
+    for (const notification of notifications) {
+      readIds.add(notification.id);
+    }
+    window.localStorage.setItem(key, JSON.stringify([...readIds]));
+    setUnreadCount(0);
+  };
 
   const handleLogout = () => {
     logout();
@@ -153,13 +179,18 @@ export function Header({
         Gateway {health}
       </span>
 
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={handleNotificationsOpenChange}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="relative size-9" aria-label="Notifications">
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative size-9"
+            aria-label="Notifications"
+          >
             <Bell className="size-4" />
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-danger text-[10px] font-semibold text-danger-foreground">
-                {notifications.length}
+                {unreadCount}
               </span>
             )}
           </Button>

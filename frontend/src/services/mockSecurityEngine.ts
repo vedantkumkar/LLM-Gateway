@@ -39,7 +39,14 @@ const INJECTION_PATTERNS = [
   "developer mode",
 ];
 
-const SECRET_PATTERNS = [/sk-[a-z0-9-]{6,}/gi, /api[_-]?key/gi, /secret/gi, /password/gi, /token/gi];
+const SECRET_PATTERNS = [
+  /sk-[a-z0-9-]{6,}/gi,
+  /\b(?:api[_-]?key|secret|password|token)\s*[:=]\s*[a-z0-9._~+/=-]{6,}\b/gi,
+];
+const RESTRICTED_SENSITIVE_RE =
+  /\b(?:internal|restricted|confidential|proprietary|company dataset|corporate dataset|company data|customer records|customer data|employee records|employee data|financial records|production api keys?|admin(?:istrator)? password|credentials|secret keys?|acquisition memo|source code|database dump|database backup|(?:whole|entire) dataset of (?:the )?company)\b/i;
+const RESTRICTED_DISCLOSURE_RE =
+  /\b(?:external partner|outside (?:the )?company|share externally|send externally|give me|show me|reveal|provide me|send me|export|download|dump|extract|leak|copy|whole dataset|entire dataset|all customer records)\b/i;
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.]{2,}/g;
 const CARD_RE = /\b(?:\d[ -]?){13,16}\b/g;
@@ -127,13 +134,20 @@ export function analyzePromptMock(prompt: string, model: string, role: string): 
   }
 
   const piiTypes = detections.filter((d) =>
-    ["EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "PERSON", "GOVERNMENT_ID", "MEDICAL_RECORD"].includes(
-      d.type,
-    ),
+    [
+      "EMAIL_ADDRESS",
+      "PHONE_NUMBER",
+      "CREDIT_CARD",
+      "PERSON",
+      "GOVERNMENT_ID",
+      "MEDICAL_RECORD",
+    ].includes(d.type),
   );
 
   const hasCard = detections.some((d) => d.type === "CREDIT_CARD");
   const hasSecret = secretHits.length > 0;
+  const hasRestrictedDataExfiltration =
+    RESTRICTED_SENSITIVE_RE.test(prompt) && RESTRICTED_DISCLOSURE_RE.test(prompt);
 
   const riskBreakdown: RiskBreakdown = {
     piiRisk: piiTypes.length ? Math.min(96, 45 + piiTypes.length * 12 + (hasCard ? 25 : 0)) : 0,
@@ -145,13 +159,15 @@ export function analyzePromptMock(prompt: string, model: string, role: string): 
   const restrictedModel = model === "Gemini Enterprise" && role === "Employee";
   riskBreakdown.policyRisk = restrictedModel
     ? 85
-    : hasCard
-      ? 70
-      : piiTypes.length
-        ? 35
-        : injectionMatched.length
-          ? 88
-          : 5;
+    : hasRestrictedDataExfiltration
+      ? 100
+      : hasCard
+        ? 70
+        : piiTypes.length
+          ? 35
+          : injectionMatched.length
+            ? 88
+            : 5;
 
   const riskScore = Math.min(
     100,
@@ -161,6 +177,7 @@ export function analyzePromptMock(prompt: string, model: string, role: string): 
         riskBreakdown.secretRisk,
         riskBreakdown.piiRisk * 0.9,
         riskBreakdown.policyRisk * 0.85,
+        riskBreakdown.policyRisk,
       ),
     ),
   );
@@ -180,6 +197,9 @@ export function analyzePromptMock(prompt: string, model: string, role: string): 
   } else if (restrictedModel) {
     decision = "BLOCK";
     policyTriggered = "PL-005 · Employee External Model Policy";
+  } else if (hasRestrictedDataExfiltration) {
+    decision = "BLOCK";
+    policyTriggered = "Restricted enterprise data disclosure/exfiltration";
   } else if (hasCard) {
     decision = "REDACT_AND_ALLOW";
     policyTriggered = "PL-001 · Block Payment Card Data (redaction mode)";
@@ -222,7 +242,9 @@ export function buildPipelineResult(result: AnalysisResult, analyzeOnly: boolean
   set(
     "Sensitive Data Scan",
     piiCount ? "warning" : "passed",
-    piiCount ? `${piiCount} sensitive entit${piiCount === 1 ? "y" : "ies"} detected` : "No entities detected",
+    piiCount
+      ? `${piiCount} sensitive entit${piiCount === 1 ? "y" : "ies"} detected`
+      : "No entities detected",
   );
   set(
     "Prompt Injection Scan",
@@ -241,7 +263,11 @@ export function buildPipelineResult(result: AnalysisResult, analyzeOnly: boolean
       analyzeOnly ? "waiting" : "passed",
       analyzeOnly ? "Analyze-only mode" : "Sanitized prompt forwarded",
     );
-    set("Response Scan", analyzeOnly ? "waiting" : "passed", analyzeOnly ? "Skipped" : "Response clean");
+    set(
+      "Response Scan",
+      analyzeOnly ? "waiting" : "passed",
+      analyzeOnly ? "Skipped" : "Response clean",
+    );
   } else {
     set("Policy Engine", "passed", "No policy triggered");
     set(
@@ -249,7 +275,11 @@ export function buildPipelineResult(result: AnalysisResult, analyzeOnly: boolean
       analyzeOnly ? "waiting" : "passed",
       analyzeOnly ? "Analyze-only mode" : "Forwarded to provider",
     );
-    set("Response Scan", analyzeOnly ? "waiting" : "passed", analyzeOnly ? "Skipped" : "Response clean");
+    set(
+      "Response Scan",
+      analyzeOnly ? "waiting" : "passed",
+      analyzeOnly ? "Skipped" : "Response clean",
+    );
   }
 
   set("Audit Log", "passed", "Event persisted to audit store");
@@ -285,8 +315,6 @@ export function runGatewayMock(req: GatewayRequest): GatewayResponse {
     llmResponse:
       blocked || req.analyzeOnly ? undefined : mockLlmAnswer(analysis.sanitizedPrompt, req.model),
     responseScan: blocked || req.analyzeOnly ? undefined : "Response scanned successfully",
-    blockedReason: blocked
-      ? "Request was blocked before reaching the external LLM."
-      : undefined,
+    blockedReason: blocked ? "Request was blocked before reaching the external LLM." : undefined,
   };
 }
