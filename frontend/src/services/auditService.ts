@@ -10,6 +10,11 @@ import {
 import { mockAuditLogs, mockSecurityEvents } from "@/data/mockData";
 import type { AuditLog, SecurityEvent } from "@/types";
 
+const AUDIT_CACHE_TTL_MS = 45000;
+const securityEventsCache = new Map<string, { value: SecurityEvent[]; expiresAt: number }>();
+const securityEventsInflight = new Map<string, Promise<SecurityEvent[]>>();
+let cacheScope = "signed-out";
+
 export interface EventFilters {
   search?: string;
   severity?: string;
@@ -20,7 +25,43 @@ export interface EventFilters {
   decision?: string;
 }
 
+function cacheKey(filters: EventFilters) {
+  return JSON.stringify(Object.entries(filters).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+export function setAuditCacheScope(userId: string | null): void {
+  const nextScope = userId ?? "signed-out";
+  if (nextScope === cacheScope) return;
+  cacheScope = nextScope;
+  clearAuditCache();
+}
+
+export function clearAuditCache(): void {
+  securityEventsCache.clear();
+  securityEventsInflight.clear();
+}
+
 export async function getSecurityEvents(filters: EventFilters = {}): Promise<SecurityEvent[]> {
+  const key = `${cacheScope}:security-events:${cacheKey(filters)}`;
+  const cached = securityEventsCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (cached) securityEventsCache.delete(key);
+  const active = securityEventsInflight.get(key);
+  if (active) return active;
+
+  const promise = loadSecurityEvents(filters).then((events) => {
+    if (key.startsWith(`${cacheScope}:`)) {
+      securityEventsCache.set(key, { value: events, expiresAt: Date.now() + AUDIT_CACHE_TTL_MS });
+    }
+    return events;
+  });
+  securityEventsInflight.set(key, promise);
+  return promise.finally(() => {
+    if (securityEventsInflight.get(key) === promise) securityEventsInflight.delete(key);
+  });
+}
+
+async function loadSecurityEvents(filters: EventFilters): Promise<SecurityEvent[]> {
   if (USE_MOCK_API) {
     return request<SecurityEvent[]>({
       path: apiEndpoints.securityEvents,

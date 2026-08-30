@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Select, case, func, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database.models import AuditLog
@@ -129,6 +129,22 @@ class AuditService:
                 for item in recent
             ],
         }
+
+    def security_events(self, db: Session, *, user: User, limit: int = 50, read_all: bool = False) -> list[dict[str, Any]]:
+        stmt = (
+            select(AuditLog)
+            .where(
+                or_(
+                    AuditLog.decision.in_(["BLOCK", "REDACT_AND_ALLOW"]),
+                    AuditLog.risk_level.in_(["HIGH", "CRITICAL"]),
+                )
+            )
+            .order_by(AuditLog.timestamp.desc())
+            .limit(limit)
+        )
+        if not read_all:
+            stmt = stmt.where(AuditLog.user_id == user.id)
+        return [self._security_event(record) for record in db.scalars(stmt).all()]
 
     def analytics(self, db: Session, range_name: str = "24h") -> dict[str, Any]:
         buckets = self._buckets(range_name)
@@ -261,3 +277,34 @@ class AuditService:
                 label = bucket["label"]
                 return label if isinstance(label, str) else None
         return None
+
+    def _security_event(self, record: AuditLog) -> dict[str, Any]:
+        threat_type = self._threat_type(record)
+        return {
+            "id": str(record.id),
+            "request_id": record.request_id,
+            "timestamp": record.timestamp,
+            "user_email": record.user_email,
+            "role": record.role,
+            "department": record.department,
+            "model": record.model,
+            "decision": record.decision,
+            "risk_score": record.risk_score,
+            "risk_level": record.risk_level,
+            "threat_type": threat_type,
+            "event": f"{threat_type} detected",
+            "detections_summary": record.detections_summary,
+            "sanitized_prompt": record.sanitized_prompt,
+        }
+
+    @staticmethod
+    def _threat_type(record: AuditLog) -> str:
+        if record.injection_detected:
+            return "Prompt Injection"
+        if record.secret_detected:
+            return "Secret Detection"
+        if "Restricted or sensitive enterprise data" in record.detections_summary or record.decision == "BLOCK":
+            return "Policy Violation"
+        if record.pii_detected:
+            return "PII Exposure"
+        return "Suspicious Activity"

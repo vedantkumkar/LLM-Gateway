@@ -126,6 +126,7 @@ export const apiEndpoints = {
   analyze: "/api/v1/analyze",
   auth: "/api/v1/auth",
   metricsSummary: "/api/v1/metrics/summary",
+  metricsOverview: "/api/v1/metrics/overview",
   metricsAnalytics: "/api/v1/metrics/analytics",
   metricsTraffic: "/api/v1/metrics/traffic",
   metricsPosture: "/api/v1/metrics/posture",

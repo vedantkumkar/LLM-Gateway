@@ -1,10 +1,17 @@
 import { ApiError, apiEndpoints, request, USE_MOCK_API } from "./api";
+import { clearAuditCache, setAuditCacheScope } from "./auditService";
+import { clearDashboardCache, setDashboardCacheScope } from "./dashboardService";
 import { supabase } from "./supabaseClient";
 import type { AuthUser } from "@/types";
 
 const STORAGE_KEY = "sentinelai.session";
 let cachedUser: AuthUser | null = null;
 let profileRequest: Promise<AuthUser> | null = null;
+
+function setProtectedCacheScope(user: AuthUser | null) {
+  setDashboardCacheScope(user?.id ?? null);
+  setAuditCacheScope(user?.id ?? null);
+}
 
 export const demoAccounts: AuthUser[] = [
   {
@@ -108,6 +115,7 @@ export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> 
   });
   const mapped = mapBackendUser(user);
   cachedUser = mapped;
+  setProtectedCacheScope(mapped);
   if (typeof window !== "undefined")
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
   return mapped;
@@ -125,6 +133,7 @@ export async function login(payload: LoginPayload): Promise<AuthUser> {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     }
     cachedUser = user;
+    setProtectedCacheScope(user);
     return user;
   }
   if (!supabase) throw new Error("Supabase authentication is not configured.");
@@ -159,6 +168,7 @@ export async function verifySession(): Promise<AuthUser | null> {
   if (!data.session) return null;
   if (stored) {
     cachedUser = stored;
+    setProtectedCacheScope(stored);
     void refreshTrustedProfile();
     return stored;
   }
@@ -187,6 +197,9 @@ export async function logout() {
 async function clearSession() {
   if (!USE_MOCK_API && supabase) await supabase.auth.signOut();
   cachedUser = null;
+  setProtectedCacheScope(null);
+  clearDashboardCache();
+  clearAuditCache();
   if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
 }
 
@@ -196,6 +209,7 @@ export function getStoredUser(): AuthUser | null {
   if (!raw) return null;
   try {
     cachedUser = JSON.parse(raw) as AuthUser;
+    setProtectedCacheScope(cachedUser);
     return cachedUser;
   } catch {
     return null;
@@ -207,6 +221,9 @@ export function subscribeToAuthChanges(onUser: (user: AuthUser | null) => void) 
   const { data } = supabase.auth.onAuthStateChange((event) => {
     if (event === "SIGNED_OUT") {
       cachedUser = null;
+      setProtectedCacheScope(null);
+      clearDashboardCache();
+      clearAuditCache();
       if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
       onUser(null);
       return;

@@ -1,9 +1,15 @@
 import { apiEndpoints, DASHBOARD_REQUEST_TIMEOUT_MS, request, USE_MOCK_API } from "./api";
-import { mapMetrics, type BackendMetrics } from "./backendMappers";
+import {
+  eventFromBackend,
+  mapMetrics,
+  type BackendMetrics,
+  type BackendSecurityEvent,
+} from "./backendMappers";
 import {
   mockAnalytics,
   mockDashboardMetrics,
   mockDecisionBreakdown,
+  mockSecurityEvents,
   mockSecurityPosture,
   mockThreatCategories,
   mockTraffic24h,
@@ -14,6 +20,7 @@ import type {
   AnalyticsBundle,
   DashboardMetrics,
   DecisionBreakdown,
+  SecurityEvent,
   SecurityPosture,
   ThreatCategory,
   TrafficPoint,
@@ -21,12 +28,89 @@ import type {
 
 export type TimeRange = "24h" | "7d" | "30d" | "90d";
 
-const rangeMultiplier: Record<TimeRange, number> = { "24h": 1, "7d": 6.2, "30d": 24.4, "90d": 68 };
+const DASHBOARD_CACHE_TTL_MS = 45000;
+const rangeMultiplier: Record<TimeRange, number> = {
+  "24h": 1,
+  "7d": 6.2,
+  "30d": 24.4,
+  "90d": 68,
+};
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+const cache = new Map<string, CacheEntry<unknown>>();
+const inflight = new Map<string, Promise<unknown>>();
+let cacheScope = "signed-out";
 
 export interface OverviewDashboardData {
   metrics: DashboardMetrics;
   decisions: DecisionBreakdown[];
   threats: ThreatCategory[];
+}
+
+export interface OverviewData extends OverviewDashboardData {
+  posture: SecurityPosture;
+  traffic: TrafficPoint[];
+  events: SecurityEvent[];
+}
+
+interface BackendOverviewData {
+  summary: BackendMetrics;
+  posture: SecurityPosture;
+  traffic: TrafficPoint[];
+  security_events: BackendSecurityEvent[];
+}
+
+export function setDashboardCacheScope(userId: string | null): void {
+  const nextScope = userId ?? "signed-out";
+  if (nextScope === cacheScope) return;
+  cacheScope = nextScope;
+  clearDashboardCache();
+}
+
+export function clearDashboardCache(): void {
+  cache.clear();
+  inflight.clear();
+}
+
+function scopedKey(key: string): string {
+  return `${cacheScope}:${key}`;
+}
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value as T;
+}
+
+function setCached<T>(key: string, value: T): T {
+  if (key.startsWith(`${cacheScope}:`)) {
+    cache.set(key, { value, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS });
+  }
+  return value;
+}
+
+function dedupe<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const active = inflight.get(key);
+  if (active) return active as Promise<T>;
+  const promise = load().finally(() => {
+    if (inflight.get(key) === promise) inflight.delete(key);
+  });
+  inflight.set(key, promise);
+  return promise;
+}
+
+function mockTrafficForRange(range: TimeRange): TrafficPoint[] {
+  if (range === "24h") return mockTraffic24h;
+  if (range === "7d") return mockTraffic7d;
+  return mockTraffic30d;
 }
 
 function mockSummaryForRange(range: TimeRange): DashboardMetrics {
@@ -60,78 +144,143 @@ function threatCategoriesFromBackendMetrics(metrics: BackendMetrics): ThreatCate
   ];
 }
 
+export function getCachedOverviewData(range: TimeRange = "24h"): OverviewData | null {
+  return getCached<OverviewData>(scopedKey(`overview:${range}`));
+}
+
+export async function getOverviewData(range: TimeRange = "24h"): Promise<OverviewData> {
+  const key = scopedKey(`overview:${range}`);
+  const cached = getCached<OverviewData>(key);
+  if (cached) return cached;
+  return dedupe(key, async () => {
+    if (USE_MOCK_API) {
+      return setCached(
+        key,
+        await request<OverviewData>({
+          path: apiEndpoints.metricsOverview,
+          query: { range },
+          mock: () => ({
+            metrics: mockSummaryForRange(range),
+            decisions: mockDecisionBreakdown,
+            threats: mockThreatCategories,
+            posture: mockSecurityPosture,
+            traffic: mockTrafficForRange(range),
+            events: mockSecurityEvents.slice(0, 6),
+          }),
+        }),
+      );
+    }
+
+    const overview = await request<BackendOverviewData>({
+      path: apiEndpoints.metricsOverview,
+      query: { range },
+      mock: () => ({
+        summary: mockDashboardMetrics as unknown as BackendMetrics,
+        posture: mockSecurityPosture,
+        traffic: [],
+        security_events: [],
+      }),
+      timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
+    });
+
+    return setCached(key, {
+      metrics: mapMetrics(overview.summary),
+      decisions: decisionBreakdownFromBackendMetrics(overview.summary),
+      threats: threatCategoriesFromBackendMetrics(overview.summary),
+      posture: overview.posture,
+      traffic: overview.traffic,
+      events: overview.security_events.map(eventFromBackend),
+    });
+  });
+}
+
 export async function getOverviewDashboardData(
   range: TimeRange = "24h",
 ): Promise<OverviewDashboardData> {
-  if (USE_MOCK_API) {
-    return request<OverviewDashboardData>({
-      path: apiEndpoints.metricsSummary,
-      query: { range },
-      mock: () => ({
-        metrics: mockSummaryForRange(range),
-        decisions: mockDecisionBreakdown,
-        threats: mockThreatCategories,
-      }),
-    });
-  }
-  const metrics = await request<BackendMetrics>({
-    path: apiEndpoints.metricsSummary,
-    query: { range },
-    mock: () => mockDashboardMetrics as unknown as BackendMetrics,
-    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
-  });
+  const overview = await getOverviewData(range);
   return {
-    metrics: mapMetrics(metrics),
-    decisions: decisionBreakdownFromBackendMetrics(metrics),
-    threats: threatCategoriesFromBackendMetrics(metrics),
+    metrics: overview.metrics,
+    decisions: overview.decisions,
+    threats: overview.threats,
   };
 }
 
 export async function getDashboardSummary(range: TimeRange = "24h"): Promise<DashboardMetrics> {
+  const key = scopedKey(`summary:${range}`);
+  const cached = getCached<DashboardMetrics>(key);
+  if (cached) return cached;
   if (USE_MOCK_API) {
-    return request<DashboardMetrics>({
+    return dedupe(key, () =>
+      request<DashboardMetrics>({
+        path: apiEndpoints.metricsSummary,
+        query: { range },
+        mock: () => setCached(key, mockSummaryForRange(range)),
+      }),
+    );
+  }
+
+  return dedupe(key, async () => {
+    const metrics = await request<BackendMetrics>({
       path: apiEndpoints.metricsSummary,
       query: { range },
-      mock: () => mockSummaryForRange(range),
+      mock: () => mockDashboardMetrics as unknown as BackendMetrics,
+      timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
     });
-  }
-  const metrics = await request<BackendMetrics>({
-    path: apiEndpoints.metricsSummary,
-    query: { range },
-    mock: () => mockDashboardMetrics as unknown as BackendMetrics,
-    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
+    return setCached(key, mapMetrics(metrics));
   });
-  return mapMetrics(metrics);
 }
 
 export async function getSecurityPosture(): Promise<SecurityPosture> {
-  return USE_MOCK_API
-    ? request<SecurityPosture>({
+  const key = scopedKey("posture");
+  const cached = getCached<SecurityPosture>(key);
+  if (cached) return cached;
+  if (USE_MOCK_API) {
+    return dedupe(key, () =>
+      request<SecurityPosture>({
         path: apiEndpoints.metricsPosture,
-        mock: () => mockSecurityPosture,
-      })
-    : request<SecurityPosture>({
+        mock: () => setCached(key, mockSecurityPosture),
+      }),
+    );
+  }
+
+  return dedupe(key, async () =>
+    setCached(
+      key,
+      await request<SecurityPosture>({
         path: apiEndpoints.metricsPosture,
         mock: () => mockSecurityPosture,
         timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
-      });
+      }),
+    ),
+  );
 }
 
 export async function getTrafficSeries(range: TimeRange = "24h"): Promise<TrafficPoint[]> {
-  const mock = () =>
-    range === "24h" ? mockTraffic24h : range === "7d" ? mockTraffic7d : mockTraffic30d;
-  return USE_MOCK_API
-    ? request<TrafficPoint[]>({
+  const key = scopedKey(`traffic:${range}`);
+  const cached = getCached<TrafficPoint[]>(key);
+  if (cached) return cached;
+  const mock = () => mockTrafficForRange(range);
+  if (USE_MOCK_API) {
+    return dedupe(key, () =>
+      request<TrafficPoint[]>({
         path: apiEndpoints.metricsTraffic,
         query: { range },
-        mock,
-      })
-    : request<TrafficPoint[]>({
+        mock: () => setCached(key, mock()),
+      }),
+    );
+  }
+
+  return dedupe(key, async () =>
+    setCached(
+      key,
+      await request<TrafficPoint[]>({
         path: apiEndpoints.metricsTraffic,
         query: { range },
         mock,
         timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
-      });
+      }),
+    ),
+  );
 }
 
 export async function getDecisionBreakdown(): Promise<DecisionBreakdown[]> {

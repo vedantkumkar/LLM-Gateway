@@ -384,9 +384,33 @@ def test_overview_metrics_endpoints_exist(client):
     headers = {"Authorization": "Bearer security-demo-token"}
 
     assert client.get("/api/v1/metrics/summary", headers=headers).status_code == 200
+    assert client.get("/api/v1/metrics/overview?range=24h", headers=headers).status_code == 200
     assert client.get("/api/v1/metrics/traffic?range=24h", headers=headers).status_code == 200
     assert client.get("/api/v1/metrics/analytics?range=7d", headers=headers).status_code == 200
     assert client.get("/api/v1/metrics/posture", headers=headers).status_code == 200
+
+
+def test_overview_metrics_endpoint_returns_dashboard_bundle(client):
+    response = client.get(
+        "/api/v1/metrics/overview?range=24h",
+        headers={"Authorization": "Bearer security-demo-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["total_requests"] == 0
+    assert body["posture"]["status"] == "SECURE"
+    assert len(body["traffic"]) == 24
+    assert body["security_events"] == []
+
+
+def test_employee_cannot_access_metrics_overview(client):
+    response = client.get(
+        "/api/v1/metrics/overview?range=24h",
+        headers={"Authorization": "Bearer employee-demo-token"},
+    )
+
+    assert response.status_code == 403
 
 
 def test_empty_analytics_returns_valid_zero_structures(client):

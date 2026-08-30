@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
@@ -40,12 +40,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getOverviewDashboardData,
-  getSecurityPosture,
-  getTrafficSeries,
+  getCachedOverviewData,
+  getOverviewData,
+  type OverviewData,
   type TimeRange,
 } from "@/services/dashboardService";
-import { getSecurityEvents } from "@/services/auditService";
 import type {
   DashboardMetrics,
   DecisionBreakdown,
@@ -88,53 +87,66 @@ const decisionColors: Record<string, string> = {
 };
 
 function OverviewPage() {
+  const initialOverview = getCachedOverviewData("24h");
   const [range, setRange] = useState<TimeRange>("24h");
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [posture, setPosture] = useState<SecurityPosture | null>(null);
-  const [traffic, setTraffic] = useState<TrafficPoint[]>([]);
-  const [decisions, setDecisions] = useState<DecisionBreakdown[]>([]);
-  const [threats, setThreats] = useState<ThreatCategory[]>([]);
-  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(initialOverview?.metrics ?? null);
+  const [posture, setPosture] = useState<SecurityPosture | null>(initialOverview?.posture ?? null);
+  const [traffic, setTraffic] = useState<TrafficPoint[]>(initialOverview?.traffic ?? []);
+  const [decisions, setDecisions] = useState<DecisionBreakdown[]>(initialOverview?.decisions ?? []);
+  const [threats, setThreats] = useState<ThreatCategory[]>(initialOverview?.threats ?? []);
+  const [events, setEvents] = useState<SecurityEvent[]>(initialOverview?.events ?? []);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [optionalLoading, setOptionalLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialOverview);
+  const [refreshing, setRefreshing] = useState(false);
+  const latestRequestId = useRef(0);
   const trendPrefix = "";
 
-  const load = (r: TimeRange) => {
-    setLoading(true);
-    setOptionalLoading(true);
-    setError(null);
-    Promise.allSettled([getOverviewDashboardData(r), getSecurityPosture()])
-      .then(([overview, p]) => {
-        const failures = [overview, p].filter((result) => result.status === "rejected");
-        if (overview.status === "fulfilled") {
-          setMetrics(overview.value.metrics);
-          setDecisions(overview.value.decisions);
-          setThreats(overview.value.threats);
-        }
-        if (p.status === "fulfilled") setPosture(p.value);
-        if (failures.length > 0) {
-          setError(
-            `${failures.length} dashboard section${failures.length === 1 ? "" : "s"} failed to load.`,
-          );
-        }
-      })
-      .finally(() => setLoading(false));
+  const applyOverview = (overview: OverviewData) => {
+    setMetrics(overview.metrics);
+    setPosture(overview.posture);
+    setTraffic(overview.traffic);
+    setDecisions(overview.decisions);
+    setThreats(overview.threats);
+    setEvents(overview.events.slice(0, 6));
+  };
 
-    Promise.allSettled([getTrafficSeries(r), getSecurityEvents()])
-      .then(([t, e]) => {
-        const failures = [t, e].filter((result) => result.status === "rejected");
-        if (t.status === "fulfilled") setTraffic(t.value);
-        if (e.status === "fulfilled") setEvents(e.value.slice(0, 6));
-        if (failures.length > 0) {
-          setError((current) => current ?? "Optional dashboard sections failed to load.");
-        }
+  const load = (r: TimeRange) => {
+    const requestId = latestRequestId.current + 1;
+    latestRequestId.current = requestId;
+    const cached = getCachedOverviewData(r);
+    if (cached) {
+      applyOverview(cached);
+      setLoading(false);
+    } else if (!metrics || !posture) {
+      setLoading(true);
+    }
+    setRefreshing(true);
+    setError(null);
+    getOverviewData(r)
+      .then((overview) => {
+        if (latestRequestId.current !== requestId) return;
+        applyOverview(overview);
       })
-      .finally(() => setOptionalLoading(false));
+      .catch(() => {
+        if (latestRequestId.current !== requestId) return;
+        setError(
+          cached || metrics || posture
+            ? "Could not refresh dashboard data. Showing the last successful data."
+            : "Dashboard data failed to load.",
+        );
+      })
+      .finally(() => {
+        if (latestRequestId.current !== requestId) return;
+        setLoading(false);
+        setRefreshing(false);
+      });
   };
 
   useEffect(() => {
     load(range);
+    return () => {
+      latestRequestId.current += 1;
+    };
   }, [range]);
 
   return (
@@ -159,6 +171,11 @@ function OverviewPage() {
               {r.label}
             </button>
           ))}
+          {refreshing && !loading && (
+            <span className="px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              Refreshing...
+            </span>
+          )}
         </div>
       }
     >
@@ -171,7 +188,7 @@ function OverviewPage() {
         </div>
       )}
 
-      {loading || !metrics || !posture ? (
+      {loading && (!metrics || !posture) ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-lg" />
@@ -284,66 +301,70 @@ function OverviewPage() {
             <SectionCard
               title="AI Gateway Traffic"
               subtitle={
-                optionalLoading && traffic.length === 0
+                refreshing && traffic.length === 0
                   ? "Loading traffic data"
                   : `${trendPrefix}Total, allowed and blocked requests`
               }
               className="lg:col-span-2"
             >
               <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={traffic} margin={{ top: 6, right: 8, bottom: 0, left: -18 }}>
-                    <defs>
-                      <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.28} />
-                        <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--color-border)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 11 }}
-                      stroke="var(--color-muted-foreground)"
-                    />
-                    <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--color-card)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      name="Total"
-                      stroke="var(--color-chart-1)"
-                      fill="url(#gTotal)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="allowed"
-                      name="Allowed"
-                      stroke="var(--color-safe)"
-                      fill="transparent"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="blocked"
-                      name="Blocked"
-                      stroke="var(--color-danger)"
-                      fill="transparent"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {traffic.length === 0 ? (
+                  <Skeleton className="h-full w-full rounded-md" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={traffic} margin={{ top: 6, right: 8, bottom: 0, left: -18 }}>
+                      <defs>
+                        <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.28} />
+                          <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--color-border)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11 }}
+                        stroke="var(--color-muted-foreground)"
+                      />
+                      <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--color-card)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="total"
+                        name="Total"
+                        stroke="var(--color-chart-1)"
+                        fill="url(#gTotal)"
+                        strokeWidth={2}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="allowed"
+                        name="Allowed"
+                        stroke="var(--color-safe)"
+                        fill="transparent"
+                        strokeWidth={2}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="blocked"
+                        name="Blocked"
+                        stroke="var(--color-danger)"
+                        fill="transparent"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </SectionCard>
           </div>
@@ -444,7 +465,7 @@ function OverviewPage() {
           <SectionCard
             title="Live Security Events"
             subtitle={
-              optionalLoading && events.length === 0
+              refreshing && events.length === 0
                 ? "Loading recent gateway decisions"
                 : "Most recent gateway decisions"
             }
@@ -471,26 +492,34 @@ function OverviewPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell>
-                        <SeverityBadge severity={e.severity} />
-                      </TableCell>
-                      <TableCell className="font-medium">{e.event}</TableCell>
-                      <TableCell className="font-mono text-xs">{e.user}</TableCell>
-                      <TableCell className="text-muted-foreground">{e.department}</TableCell>
-                      <TableCell className="text-muted-foreground">{e.model}</TableCell>
-                      <TableCell>
-                        <RiskScore score={e.riskScore} />
-                      </TableCell>
-                      <TableCell>
-                        <DecisionBadge decision={e.decision} />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {e.relativeTime}
+                  {events.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8}>
+                        <Skeleton className="h-10 w-full rounded-md" />
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    events.map((e) => (
+                      <TableRow key={e.id}>
+                        <TableCell>
+                          <SeverityBadge severity={e.severity} />
+                        </TableCell>
+                        <TableCell className="font-medium">{e.event}</TableCell>
+                        <TableCell className="font-mono text-xs">{e.user}</TableCell>
+                        <TableCell className="text-muted-foreground">{e.department}</TableCell>
+                        <TableCell className="text-muted-foreground">{e.model}</TableCell>
+                        <TableCell>
+                          <RiskScore score={e.riskScore} />
+                        </TableCell>
+                        <TableCell>
+                          <DecisionBadge decision={e.decision} />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {e.relativeTime}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>

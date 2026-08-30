@@ -1,9 +1,17 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.auth.rbac import require_permission
+from app.auth.rbac import has_permission, require_permission
 from app.database.database import get_db
-from app.schemas.schemas import AnalyticsBundleResponse, MetricsSummary, SecurityPostureResponse, TrafficPoint, User
+from app.schemas.schemas import (
+    AnalyticsBundleResponse,
+    MetricsOverviewResponse,
+    MetricsSummary,
+    SecurityEventResponse,
+    SecurityPostureResponse,
+    TrafficPoint,
+    User,
+)
 from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
@@ -15,6 +23,26 @@ async def metrics_summary(
     db: Session = Depends(get_db),
 ) -> MetricsSummary:
     return MetricsSummary(**AuditService().metrics(db))
+
+
+@router.get("/overview", response_model=MetricsOverviewResponse)
+async def metrics_overview(
+    range: str = Query(default="24h", pattern="^(24h|7d|30d|90d)$"),
+    user: User = Depends(require_permission("metrics:read")),
+    db: Session = Depends(get_db),
+) -> MetricsOverviewResponse:
+    service = AuditService()
+    analytics = service.analytics(db, range)
+    read_all = has_permission(user, "audit:read_all")
+    return MetricsOverviewResponse(
+        summary=MetricsSummary(**service.metrics(db)),
+        posture=SecurityPostureResponse(**service.security_posture(db)),
+        traffic=[TrafficPoint(**point) for point in analytics["requestVolume"]],
+        security_events=[
+            SecurityEventResponse(**event)
+            for event in service.security_events(db, user=user, limit=6, read_all=read_all)
+        ],
+    )
 
 
 @router.get("/analytics", response_model=AnalyticsBundleResponse)

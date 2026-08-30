@@ -279,6 +279,13 @@ class SecurityEventResponse(BaseModel):
     sanitized_prompt: str
 
 
+class MetricsOverviewResponse(BaseModel):
+    summary: MetricsSummary
+    posture: SecurityPostureResponse
+    traffic: list[TrafficPoint]
+    security_events: list[SecurityEventResponse]
+
+
 class NotificationResponse(BaseModel):
     id: str
     title: str

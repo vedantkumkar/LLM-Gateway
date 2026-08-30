@@ -98,6 +98,7 @@ export function SidebarContent({
                 <li key={item.to}>
                   <Link
                     to={item.to}
+                    preload="intent"
                     onClick={onNavigate}
                     title={collapsed ? item.label : undefined}
                     className={cn(
