@@ -319,6 +319,59 @@ def test_supabase_identity_cache_avoids_duplicate_remote_validation(client, monk
     get_settings.cache_clear()
 
 
+def test_supabase_identity_cache_deduplicates_concurrent_validation(monkeypatch):
+    import asyncio
+
+    import app.auth.authentication as auth_module
+
+    calls = {"count": 0}
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"id": "concurrent-user", "email": "concurrent@example.com"}
+
+    class FakeAsyncClient:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, headers):
+            calls["count"] += 1
+            await asyncio.sleep(0.01)
+            return FakeResponse()
+
+    async def run_concurrent_requests():
+        settings = get_settings()
+        return await asyncio.gather(
+            auth_module._get_supabase_identity("concurrent-token", settings),
+            auth_module._get_supabase_identity("concurrent-token", settings),
+            auth_module._get_supabase_identity("concurrent-token", settings),
+        )
+
+    monkeypatch.setattr(auth_module.httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setenv("AUTH_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "publishable")
+    get_settings.cache_clear()
+    auth_module._supabase_identity_cache.clear()
+    auth_module._supabase_identity_inflight.clear()
+
+    payloads = asyncio.run(run_concurrent_requests())
+
+    assert [payload["id"] for payload in payloads] == ["concurrent-user"] * 3
+    assert calls["count"] == 1
+    assert auth_module._supabase_identity_inflight == {}
+    get_settings.cache_clear()
+    auth_module._supabase_identity_cache.clear()
+
+
 def test_supabase_identity_cache_does_not_bypass_suspended_profile(client, monkeypatch):
     class FakeResponse:
         status_code = 200

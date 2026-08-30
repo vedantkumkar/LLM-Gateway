@@ -1,4 +1,4 @@
-import { apiEndpoints, request, USE_MOCK_API } from "./api";
+import { apiEndpoints, DASHBOARD_REQUEST_TIMEOUT_MS, request, USE_MOCK_API } from "./api";
 import { mapMetrics, type BackendMetrics } from "./backendMappers";
 import {
   mockAnalytics,
@@ -23,30 +23,83 @@ export type TimeRange = "24h" | "7d" | "30d" | "90d";
 
 const rangeMultiplier: Record<TimeRange, number> = { "24h": 1, "7d": 6.2, "30d": 24.4, "90d": 68 };
 
-export async function getDashboardSummary(range: TimeRange = "24h"): Promise<DashboardMetrics> {
+export interface OverviewDashboardData {
+  metrics: DashboardMetrics;
+  decisions: DecisionBreakdown[];
+  threats: ThreatCategory[];
+}
+
+function mockSummaryForRange(range: TimeRange): DashboardMetrics {
+  const m = rangeMultiplier[range];
+  const scale = (v: number) => Math.round(v * m);
+  return {
+    ...mockDashboardMetrics,
+    totalRequests: scale(mockDashboardMetrics.totalRequests),
+    allowedRequests: scale(mockDashboardMetrics.allowedRequests),
+    redactedRequests: scale(mockDashboardMetrics.redactedRequests),
+    blockedThreats: scale(mockDashboardMetrics.blockedThreats),
+    piiDetections: scale(mockDashboardMetrics.piiDetections),
+    injectionAttempts: scale(mockDashboardMetrics.injectionAttempts),
+  };
+}
+
+function decisionBreakdownFromBackendMetrics(metrics: BackendMetrics): DecisionBreakdown[] {
+  const total = Math.max(1, metrics.total_requests);
+  return [
+    { decision: "Allowed", value: Math.round((metrics.allowed_requests / total) * 100) },
+    { decision: "Redacted", value: Math.round((metrics.redacted_requests / total) * 100) },
+    { decision: "Blocked", value: Math.round((metrics.blocked_requests / total) * 100) },
+  ];
+}
+
+function threatCategoriesFromBackendMetrics(metrics: BackendMetrics): ThreatCategory[] {
+  return [
+    { category: "PII Exposure", count: metrics.pii_detections },
+    { category: "Secret Detection", count: metrics.secret_detections },
+    { category: "Prompt Injection", count: metrics.prompt_injection_attempts },
+  ];
+}
+
+export async function getOverviewDashboardData(
+  range: TimeRange = "24h",
+): Promise<OverviewDashboardData> {
   if (USE_MOCK_API) {
-    return request<DashboardMetrics>({
+    return request<OverviewDashboardData>({
       path: apiEndpoints.metricsSummary,
       query: { range },
-      mock: () => {
-        const m = rangeMultiplier[range];
-        const scale = (v: number) => Math.round(v * m);
-        return {
-          ...mockDashboardMetrics,
-          totalRequests: scale(mockDashboardMetrics.totalRequests),
-          allowedRequests: scale(mockDashboardMetrics.allowedRequests),
-          redactedRequests: scale(mockDashboardMetrics.redactedRequests),
-          blockedThreats: scale(mockDashboardMetrics.blockedThreats),
-          piiDetections: scale(mockDashboardMetrics.piiDetections),
-          injectionAttempts: scale(mockDashboardMetrics.injectionAttempts),
-        };
-      },
+      mock: () => ({
+        metrics: mockSummaryForRange(range),
+        decisions: mockDecisionBreakdown,
+        threats: mockThreatCategories,
+      }),
     });
   }
   const metrics = await request<BackendMetrics>({
     path: apiEndpoints.metricsSummary,
     query: { range },
     mock: () => mockDashboardMetrics as unknown as BackendMetrics,
+    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
+  });
+  return {
+    metrics: mapMetrics(metrics),
+    decisions: decisionBreakdownFromBackendMetrics(metrics),
+    threats: threatCategoriesFromBackendMetrics(metrics),
+  };
+}
+
+export async function getDashboardSummary(range: TimeRange = "24h"): Promise<DashboardMetrics> {
+  if (USE_MOCK_API) {
+    return request<DashboardMetrics>({
+      path: apiEndpoints.metricsSummary,
+      query: { range },
+      mock: () => mockSummaryForRange(range),
+    });
+  }
+  const metrics = await request<BackendMetrics>({
+    path: apiEndpoints.metricsSummary,
+    query: { range },
+    mock: () => mockDashboardMetrics as unknown as BackendMetrics,
+    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
   });
   return mapMetrics(metrics);
 }
@@ -60,6 +113,7 @@ export async function getSecurityPosture(): Promise<SecurityPosture> {
     : request<SecurityPosture>({
         path: apiEndpoints.metricsPosture,
         mock: () => mockSecurityPosture,
+        timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
       });
 }
 
@@ -76,6 +130,7 @@ export async function getTrafficSeries(range: TimeRange = "24h"): Promise<Traffi
         path: apiEndpoints.metricsTraffic,
         query: { range },
         mock,
+        timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
       });
 }
 
@@ -89,13 +144,9 @@ export async function getDecisionBreakdown(): Promise<DecisionBreakdown[]> {
   const metrics = await request<BackendMetrics>({
     path: apiEndpoints.metricsSummary,
     mock: () => mockDashboardMetrics as unknown as BackendMetrics,
+    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
   });
-  const total = Math.max(1, metrics.total_requests);
-  return [
-    { decision: "Allowed", value: Math.round((metrics.allowed_requests / total) * 100) },
-    { decision: "Redacted", value: Math.round((metrics.redacted_requests / total) * 100) },
-    { decision: "Blocked", value: Math.round((metrics.blocked_requests / total) * 100) },
-  ];
+  return decisionBreakdownFromBackendMetrics(metrics);
 }
 
 export async function getThreatCategories(): Promise<ThreatCategory[]> {
@@ -108,12 +159,9 @@ export async function getThreatCategories(): Promise<ThreatCategory[]> {
   const metrics = await request<BackendMetrics>({
     path: apiEndpoints.metricsSummary,
     mock: () => mockDashboardMetrics as unknown as BackendMetrics,
+    timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
   });
-  return [
-    { category: "PII Exposure", count: metrics.pii_detections },
-    { category: "Secret Detection", count: metrics.secret_detections },
-    { category: "Prompt Injection", count: metrics.prompt_injection_attempts },
-  ];
+  return threatCategoriesFromBackendMetrics(metrics);
 }
 
 export async function getAnalytics(range: TimeRange = "7d"): Promise<AnalyticsBundle> {
@@ -128,6 +176,7 @@ export async function getAnalytics(range: TimeRange = "7d"): Promise<AnalyticsBu
         path: apiEndpoints.metricsAnalytics,
         query: { range },
         mock,
+        timeoutMs: DASHBOARD_REQUEST_TIMEOUT_MS,
       });
 }
 

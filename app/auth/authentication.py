@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import logging
@@ -17,6 +18,7 @@ from app.schemas.schemas import User
 security = HTTPBearer(auto_error=False)
 SUPABASE_IDENTITY_CACHE_TTL = timedelta(seconds=45)
 _supabase_identity_cache: dict[str, tuple[datetime, dict[str, object]]] = {}
+_supabase_identity_inflight: dict[str, asyncio.Task[dict[str, object]]] = {}
 logger = logging.getLogger("app.auth")
 
 
@@ -134,8 +136,18 @@ async def _get_supabase_identity(token: str, settings: Settings) -> dict[str, ob
         if expires_at > now:
             return payload
         _supabase_identity_cache.pop(cache_key, None)
-    payload = await _fetch_supabase_user(token, settings)
-    _supabase_identity_cache[cache_key] = (now + SUPABASE_IDENTITY_CACHE_TTL, payload)
+    inflight = _supabase_identity_inflight.get(cache_key)
+    if inflight is not None:
+        payload = await inflight
+    else:
+        task = asyncio.create_task(_fetch_supabase_user(token, settings))
+        _supabase_identity_inflight[cache_key] = task
+        try:
+            payload = await task
+        finally:
+            if _supabase_identity_inflight.get(cache_key) is task:
+                _supabase_identity_inflight.pop(cache_key, None)
+    _supabase_identity_cache[cache_key] = (datetime.now(timezone.utc) + SUPABASE_IDENTITY_CACHE_TTL, payload)
     return payload
 
 

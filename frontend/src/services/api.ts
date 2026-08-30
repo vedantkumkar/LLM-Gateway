@@ -27,6 +27,7 @@ export class ApiError extends Error {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const REQUEST_TIMEOUT_MS = 12000;
+export const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
 const STORAGE_KEY = "sentinelai.session";
 
 export interface RequestOptions<T> {

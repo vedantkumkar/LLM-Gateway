@@ -40,10 +40,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getDashboardSummary,
-  getDecisionBreakdown,
+  getOverviewDashboardData,
   getSecurityPosture,
-  getThreatCategories,
   getTrafficSeries,
   type TimeRange,
 } from "@/services/dashboardService";
@@ -99,27 +97,22 @@ function OverviewPage() {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [optionalLoading, setOptionalLoading] = useState(false);
   const trendPrefix = "";
 
   const load = (r: TimeRange) => {
     setLoading(true);
+    setOptionalLoading(true);
     setError(null);
-    Promise.allSettled([
-      getDashboardSummary(r),
-      getSecurityPosture(),
-      getTrafficSeries(r),
-      getDecisionBreakdown(),
-      getThreatCategories(),
-      getSecurityEvents(),
-    ])
-      .then(([m, p, t, d, th, e]) => {
-        const failures = [m, p, t, d, th, e].filter((result) => result.status === "rejected");
-        if (m.status === "fulfilled") setMetrics(m.value);
+    Promise.allSettled([getOverviewDashboardData(r), getSecurityPosture()])
+      .then(([overview, p]) => {
+        const failures = [overview, p].filter((result) => result.status === "rejected");
+        if (overview.status === "fulfilled") {
+          setMetrics(overview.value.metrics);
+          setDecisions(overview.value.decisions);
+          setThreats(overview.value.threats);
+        }
         if (p.status === "fulfilled") setPosture(p.value);
-        if (t.status === "fulfilled") setTraffic(t.value);
-        if (d.status === "fulfilled") setDecisions(d.value);
-        if (th.status === "fulfilled") setThreats(th.value);
-        if (e.status === "fulfilled") setEvents(e.value.slice(0, 6));
         if (failures.length > 0) {
           setError(
             `${failures.length} dashboard section${failures.length === 1 ? "" : "s"} failed to load.`,
@@ -127,6 +120,17 @@ function OverviewPage() {
         }
       })
       .finally(() => setLoading(false));
+
+    Promise.allSettled([getTrafficSeries(r), getSecurityEvents()])
+      .then(([t, e]) => {
+        const failures = [t, e].filter((result) => result.status === "rejected");
+        if (t.status === "fulfilled") setTraffic(t.value);
+        if (e.status === "fulfilled") setEvents(e.value.slice(0, 6));
+        if (failures.length > 0) {
+          setError((current) => current ?? "Optional dashboard sections failed to load.");
+        }
+      })
+      .finally(() => setOptionalLoading(false));
   };
 
   useEffect(() => {
@@ -279,7 +283,11 @@ function OverviewPage() {
 
             <SectionCard
               title="AI Gateway Traffic"
-              subtitle={`${trendPrefix}Total, allowed and blocked requests`}
+              subtitle={
+                optionalLoading && traffic.length === 0
+                  ? "Loading traffic data"
+                  : `${trendPrefix}Total, allowed and blocked requests`
+              }
               className="lg:col-span-2"
             >
               <div className="h-64 w-full">
@@ -435,7 +443,11 @@ function OverviewPage() {
 
           <SectionCard
             title="Live Security Events"
-            subtitle="Most recent gateway decisions"
+            subtitle={
+              optionalLoading && events.length === 0
+                ? "Loading recent gateway decisions"
+                : "Most recent gateway decisions"
+            }
             className="mt-5"
             bodyClassName="p-0"
             action={

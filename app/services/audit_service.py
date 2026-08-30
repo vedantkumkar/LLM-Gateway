@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
 from app.database.models import AuditLog
@@ -79,15 +79,28 @@ class AuditService:
         return list(db.scalars(stmt).all())
 
     def metrics(self, db: Session) -> dict[str, Any]:
-        total = db.scalar(select(func.count(AuditLog.id))) or 0
-        allowed = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.decision == "ALLOW")) or 0
-        redacted = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.decision == "REDACT_AND_ALLOW")) or 0
-        blocked = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.decision == "BLOCK")) or 0
-        pii = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.pii_detected.is_(True))) or 0
-        secrets = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.secret_detected.is_(True))) or 0
-        injection = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.injection_detected.is_(True))) or 0
-        avg_risk = db.scalar(select(func.avg(AuditLog.risk_score))) or 0
-        avg_latency = db.scalar(select(func.avg(AuditLog.latency_ms))) or 0
+        summary = db.execute(
+            select(
+                func.count(AuditLog.id),
+                func.sum(case((AuditLog.decision == "ALLOW", 1), else_=0)),
+                func.sum(case((AuditLog.decision == "REDACT_AND_ALLOW", 1), else_=0)),
+                func.sum(case((AuditLog.decision == "BLOCK", 1), else_=0)),
+                func.sum(case((AuditLog.pii_detected.is_(True), 1), else_=0)),
+                func.sum(case((AuditLog.secret_detected.is_(True), 1), else_=0)),
+                func.sum(case((AuditLog.injection_detected.is_(True), 1), else_=0)),
+                func.avg(AuditLog.risk_score),
+                func.avg(AuditLog.latency_ms),
+            )
+        ).one()
+        total = summary[0] or 0
+        allowed = summary[1] or 0
+        redacted = summary[2] or 0
+        blocked = summary[3] or 0
+        pii = summary[4] or 0
+        secrets = summary[5] or 0
+        injection = summary[6] or 0
+        avg_risk = summary[7] or 0
+        avg_latency = summary[8] or 0
         recent = db.scalars(
             select(AuditLog)
             .where((AuditLog.decision == "BLOCK") | (AuditLog.risk_level.in_(["HIGH", "CRITICAL"])))
@@ -185,10 +198,18 @@ class AuditService:
         }
 
     def security_posture(self, db: Session) -> dict[str, Any]:
-        total = db.scalar(select(func.count(AuditLog.id))) or 0
-        critical = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.risk_level == "CRITICAL")) or 0
-        high = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.risk_level == "HIGH")) or 0
-        blocked = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.decision == "BLOCK")) or 0
+        posture = db.execute(
+            select(
+                func.count(AuditLog.id),
+                func.sum(case((AuditLog.risk_level == "CRITICAL", 1), else_=0)),
+                func.sum(case((AuditLog.risk_level == "HIGH", 1), else_=0)),
+                func.sum(case((AuditLog.decision == "BLOCK", 1), else_=0)),
+            )
+        ).one()
+        total = posture[0] or 0
+        critical = posture[1] or 0
+        high = posture[2] or 0
+        blocked = posture[3] or 0
         if total == 0:
             score = 100
         else:
