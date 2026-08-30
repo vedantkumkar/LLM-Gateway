@@ -14,6 +14,7 @@ import {
 import { StatusPill } from "@/components/security/badges";
 import { getNotifications } from "@/services/healthService";
 import { getGatewayHealthStatus, logout } from "@/services/authService";
+import { USE_MOCK_API } from "@/services/api";
 import { searchWorkspace, type GlobalSearchResult } from "@/services/globalSearchService";
 import type { AppNotification, AuthUser } from "@/types";
 import { cn } from "@/lib/utils";
@@ -81,7 +82,7 @@ export function Header({
   };
 
   const handleLogout = () => {
-    logout();
+    void logout();
     void navigate({ to: "/" });
   };
 
@@ -163,7 +164,7 @@ export function Header({
         )}
       </div>
 
-      <StatusPill tone="info">Demo Environment</StatusPill>
+      <StatusPill tone="info">{USE_MOCK_API ? "Demo Environment" : "Live Environment"}</StatusPill>
 
       <span
         className="hidden items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs sm:flex"

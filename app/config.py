@@ -8,6 +8,12 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = "sqlite:///./gateway.db"
     llm_provider: str = "mock"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    auth_backend: str = "demo"
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+    bootstrap_admin_emails: str = ""
     pii_engine: str = "auto"
     rate_limit_backend: str = "memory"
     rate_limit_per_minute: int = 60
@@ -42,6 +48,14 @@ class Settings(BaseSettings):
             for origin in self.cors_origins.split(",")
             if origin.strip()
         ]
+
+    @property
+    def bootstrap_admin_email_set(self) -> set[str]:
+        return {
+            email.strip().lower()
+            for email in self.bootstrap_admin_emails.split(",")
+            if email.strip()
+        }
 
 
 @lru_cache

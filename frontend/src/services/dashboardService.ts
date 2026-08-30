@@ -54,17 +54,29 @@ export async function getDashboardSummary(range: TimeRange = "24h"): Promise<Das
 export async function getSecurityPosture(): Promise<SecurityPosture> {
   return USE_MOCK_API
     ? request<SecurityPosture>({
-        path: `${apiEndpoints.metricsSummary}/posture`,
+        path: apiEndpoints.metricsPosture,
         mock: () => mockSecurityPosture,
       })
-    : mockSecurityPosture;
+    : request<SecurityPosture>({
+        path: apiEndpoints.metricsPosture,
+        mock: () => mockSecurityPosture,
+      });
 }
 
 export async function getTrafficSeries(range: TimeRange = "24h"): Promise<TrafficPoint[]> {
-  const mock = () => (range === "24h" ? mockTraffic24h : range === "7d" ? mockTraffic7d : mockTraffic30d);
+  const mock = () =>
+    range === "24h" ? mockTraffic24h : range === "7d" ? mockTraffic7d : mockTraffic30d;
   return USE_MOCK_API
-    ? request<TrafficPoint[]>({ path: `${apiEndpoints.metricsSummary}/traffic`, query: { range }, mock })
-    : mock();
+    ? request<TrafficPoint[]>({
+        path: apiEndpoints.metricsTraffic,
+        query: { range },
+        mock,
+      })
+    : request<TrafficPoint[]>({
+        path: apiEndpoints.metricsTraffic,
+        query: { range },
+        mock,
+      });
 }
 
 export async function getDecisionBreakdown(): Promise<DecisionBreakdown[]> {
@@ -107,8 +119,16 @@ export async function getThreatCategories(): Promise<ThreatCategory[]> {
 export async function getAnalytics(range: TimeRange = "7d"): Promise<AnalyticsBundle> {
   const mock = () => rangeAnalytics(range);
   return USE_MOCK_API
-    ? request<AnalyticsBundle>({ path: `${apiEndpoints.metricsSummary}/analytics`, query: { range }, mock })
-    : mock();
+    ? request<AnalyticsBundle>({
+        path: apiEndpoints.metricsAnalytics,
+        query: { range },
+        mock,
+      })
+    : request<AnalyticsBundle>({
+        path: apiEndpoints.metricsAnalytics,
+        query: { range },
+        mock,
+      });
 }
 
 function rangeAnalytics(range: TimeRange): AnalyticsBundle {
@@ -139,7 +159,10 @@ function rangeAnalytics(range: TimeRange): AnalyticsBundle {
       pii: scale(point.pii),
       secrets: scale(point.secrets),
     })),
-    piiCategories: mockAnalytics.piiCategories.map((item) => ({ ...item, count: scale(item.count) })),
+    piiCategories: mockAnalytics.piiCategories.map((item) => ({
+      ...item,
+      count: scale(item.count),
+    })),
     modelUsage: mockAnalytics.modelUsage.map((item) => ({ ...item, count: scale(item.count) })),
     departmentUsage: mockAnalytics.departmentUsage.map((item) => ({
       ...item,

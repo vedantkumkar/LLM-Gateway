@@ -8,6 +8,8 @@
  * Swapping to the real backend requires NO component changes.
  */
 
+import { getSupabaseSession } from "./supabaseClient";
+
 export const API_BASE_URL =
   (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ?? "http://127.0.0.1:8000";
 
@@ -24,7 +26,7 @@ export class ApiError extends Error {
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 12000;
 const STORAGE_KEY = "sentinelai.session";
 
 export interface RequestOptions<T> {
@@ -37,6 +39,7 @@ export interface RequestOptions<T> {
   mock: () => T | Promise<T>;
   /** Artificial latency for realistic loading states. */
   mockDelayMs?: number;
+  timeoutMs?: number;
 }
 
 function buildUrl(path: string, query?: RequestOptions<unknown>["query"]) {
@@ -49,7 +52,10 @@ function buildUrl(path: string, query?: RequestOptions<unknown>["query"]) {
   return url.toString();
 }
 
-function getStoredToken() {
+async function getRequestToken() {
+  if (!USE_MOCK_API) {
+    return (await getSupabaseSession())?.access_token ?? null;
+  }
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
@@ -82,8 +88,11 @@ export async function request<T>(options: RequestOptions<T>): Promise<T> {
   }
 
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const token = getStoredToken();
+  const timeout = globalThis.setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? REQUEST_TIMEOUT_MS,
+  );
+  const token = await getRequestToken();
 
   const res = await fetch(buildUrl(options.path, options.query), {
     method: options.method ?? "GET",
@@ -113,7 +122,11 @@ export const apiEndpoints = {
   health: "/health",
   chat: "/api/v1/chat",
   analyze: "/api/v1/analyze",
+  auth: "/api/v1/auth",
   metricsSummary: "/api/v1/metrics/summary",
+  metricsAnalytics: "/api/v1/metrics/analytics",
+  metricsTraffic: "/api/v1/metrics/traffic",
+  metricsPosture: "/api/v1/metrics/posture",
   securityEvents: "/api/v1/security/events",
   audit: "/api/v1/audit",
   policies: "/api/v1/policies",

@@ -28,6 +28,20 @@ class PolicyDecision:
     policy_score: int
 
 
+@dataclass(frozen=True)
+class EffectivePolicyConfig:
+    model_access_enabled: bool = True
+    secret_enabled: bool = True
+    secret_action: str = "Block"
+    injection_enabled: bool = True
+    injection_action: str = "Block"
+    injection_threshold: int = 70
+    dlp_enabled: bool = True
+    dlp_action: str = "Block"
+    pii_enabled: bool = True
+    pii_action: str = "Redact"
+
+
 class PolicyEngine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -39,31 +53,48 @@ class PolicyEngine:
         prompt: str,
         detections: list[Detection],
         injection: InjectionAnalysis,
+        controls: EffectivePolicyConfig | None = None,
     ) -> PolicyDecision:
+        controls = controls or EffectivePolicyConfig(
+            injection_threshold=self.settings.prompt_injection_block_threshold,
+            pii_action="Block" if self.settings.pii_action == "BLOCK" else "Redact",
+            secret_action="Block" if self.settings.secret_action == "BLOCK" else "Alert",
+        )
         reasons: list[str] = []
         policy_score = 0
-        if not can_access_model(user, model):
+        if controls.model_access_enabled and not can_access_model(user, model):
             reasons.append(f"Model '{model}' is not authorized for role '{user.role}'.")
             return PolicyDecision("BLOCK", reasons, 100)
 
-        if any(item.category == "SECRET" for item in detections):
+        if controls.secret_enabled and any(item.category == "SECRET" for item in detections):
             reasons.append("Secret-like material was detected.")
-            return PolicyDecision("BLOCK", reasons, 100)
+            if controls.secret_action == "Block":
+                return PolicyDecision("BLOCK", reasons, 100)
+            policy_score = max(policy_score, 80)
 
-        if injection.score >= self.settings.prompt_injection_block_threshold:
+        if controls.injection_enabled and injection.score >= controls.injection_threshold:
             reasons.append("Prompt injection risk exceeded the blocking threshold.")
-            return PolicyDecision("BLOCK", reasons, 90)
+            if controls.injection_action == "Block":
+                return PolicyDecision("BLOCK", reasons, 90)
+            policy_score = max(policy_score, 70)
 
-        if self._is_restricted_disclosure_request(prompt):
-            return PolicyDecision("BLOCK", [RESTRICTED_DISCLOSURE_REASON], 100)
+        if controls.dlp_enabled and self._is_restricted_disclosure_request(prompt):
+            if controls.dlp_action == "Block":
+                return PolicyDecision("BLOCK", [RESTRICTED_DISCLOSURE_REASON], 100)
+            reasons.append(RESTRICTED_DISCLOSURE_REASON)
+            policy_score = max(policy_score, 85)
 
         pii_types = {item.type for item in detections if item.category == "PII"}
-        if pii_types:
+        if controls.pii_enabled and pii_types:
             reasons.append("PII was detected and will be redacted before provider processing.")
-            policy_score = 40 if "CREDIT_CARD" in pii_types else 25
-            return PolicyDecision("REDACT_AND_ALLOW", reasons, policy_score)
+            policy_score = max(policy_score, 40 if "CREDIT_CARD" in pii_types else 25)
+            if controls.pii_action == "Block":
+                return PolicyDecision("BLOCK", reasons, max(policy_score, 75))
+            if controls.pii_action == "Redact":
+                return PolicyDecision("REDACT_AND_ALLOW", reasons, policy_score)
 
-        reasons.append("No blocking or redaction policy matched.")
+        if not reasons:
+            reasons.append("No blocking or redaction policy matched.")
         return PolicyDecision("ALLOW", reasons, policy_score)
 
     @staticmethod

@@ -1,4 +1,6 @@
 import json
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import Select, func, select
@@ -114,3 +116,127 @@ class AuditService:
                 for item in recent
             ],
         }
+
+    def analytics(self, db: Session, range_name: str = "24h") -> dict[str, Any]:
+        buckets = self._buckets(range_name)
+        start = buckets[0]["start"] if buckets else datetime.now(timezone.utc)
+        rows = list(db.scalars(select(AuditLog).where(AuditLog.timestamp >= start).order_by(AuditLog.timestamp.asc())).all())
+        labels = [bucket["label"] for bucket in buckets]
+        traffic = {
+            label: {"label": label, "total": 0, "allowed": 0, "redacted": 0, "blocked": 0}
+            for label in labels
+        }
+        trends = {label: {"label": label, "injection": 0, "pii": 0, "secrets": 0} for label in labels}
+        latency = {label: [] for label in labels}
+        pii_categories: Counter[str] = Counter()
+        models: Counter[str] = Counter()
+        departments: Counter[str] = Counter()
+        decisions: Counter[str] = Counter()
+        risks: Counter[str] = Counter({"LOW": 0, "MEDIUM": 0, "HIGH": 0, "CRITICAL": 0})
+
+        for row in rows:
+            label = self._bucket_label(row.timestamp, buckets)
+            if label is None:
+                continue
+            traffic[label]["total"] += 1
+            if row.decision == "ALLOW":
+                traffic[label]["allowed"] += 1
+            elif row.decision == "REDACT_AND_ALLOW":
+                traffic[label]["redacted"] += 1
+            elif row.decision == "BLOCK":
+                traffic[label]["blocked"] += 1
+            if row.injection_detected:
+                trends[label]["injection"] += 1
+            if row.pii_detected:
+                trends[label]["pii"] += 1
+            if row.secret_detected:
+                trends[label]["secrets"] += 1
+            latency[label].append(row.latency_ms)
+            models[row.model] += 1
+            departments[row.department] += 1
+            decisions[row.decision] += 1
+            risks[row.risk_level] += 1
+            for detection in self._detections(row.detections_summary):
+                if detection.get("category") == "PII":
+                    pii_categories[str(detection.get("type", "Unknown"))] += 1
+
+        return {
+            "requestVolume": list(traffic.values()),
+            "threatTrends": list(trends.values()),
+            "piiCategories": [{"category": key, "count": value} for key, value in sorted(pii_categories.items())],
+            "modelUsage": [{"category": key, "count": value} for key, value in sorted(models.items())],
+            "departmentUsage": [{"category": key, "count": value} for key, value in sorted(departments.items())],
+            "blockedVsAllowed": [
+                {"decision": "Allowed", "value": decisions["ALLOW"]},
+                {"decision": "Redacted", "value": decisions["REDACT_AND_ALLOW"]},
+                {"decision": "Blocked", "value": decisions["BLOCK"]},
+            ],
+            "riskDistribution": [
+                {"category": key.title(), "count": risks[key]}
+                for key in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            ],
+            "latencyTrend": [
+                {
+                    "label": label,
+                    "latency": round(sum(values) / len(values)) if values else 0,
+                }
+                for label, values in latency.items()
+            ],
+        }
+
+    def security_posture(self, db: Session) -> dict[str, Any]:
+        total = db.scalar(select(func.count(AuditLog.id))) or 0
+        critical = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.risk_level == "CRITICAL")) or 0
+        high = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.risk_level == "HIGH")) or 0
+        blocked = db.scalar(select(func.count(AuditLog.id)).where(AuditLog.decision == "BLOCK")) or 0
+        if total == 0:
+            score = 100
+        else:
+            score = max(0, 100 - round(((critical * 8) + (high * 4) + (blocked * 2)) / total))
+        status = "SECURE" if score >= 80 else "DEGRADED" if score >= 55 else "AT RISK"
+        return {
+            "status": status,
+            "score": score,
+            "label": "Derived from audit history",
+            "controls": [
+                {"name": "Authentication", "state": "Active"},
+                {"name": "Policy Engine", "state": "Active"},
+                {"name": "Audit Logging", "state": "Active"},
+                {"name": "Response Scanning", "state": "Active"},
+            ],
+        }
+
+    @staticmethod
+    def _detections(summary: str) -> list[dict[str, Any]]:
+        try:
+            parsed = json.loads(summary)
+        except (TypeError, ValueError):
+            return []
+        return [item for item in parsed if isinstance(item, dict)] if isinstance(parsed, list) else []
+
+    @staticmethod
+    def _buckets(range_name: str) -> list[dict[str, datetime | str]]:
+        now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        if range_name == "24h":
+            starts = [now - timedelta(hours=23 - index) for index in range(24)]
+            return [{"label": start.strftime("%H:00"), "start": start, "end": start + timedelta(hours=1)} for start in starts]
+        if range_name == "90d":
+            today = now.replace(hour=0)
+            starts = [today - timedelta(days=7 * (12 - index)) for index in range(13)]
+            return [{"label": start.strftime("%Y-%m-%d"), "start": start, "end": start + timedelta(days=7)} for start in starts]
+        days = 7 if range_name == "7d" else 30
+        today = now.replace(hour=0)
+        starts = [today - timedelta(days=days - 1 - index) for index in range(days)]
+        return [{"label": start.strftime("%Y-%m-%d"), "start": start, "end": start + timedelta(days=1)} for start in starts]
+
+    @staticmethod
+    def _bucket_label(timestamp: datetime, buckets: list[dict[str, datetime | str]]) -> str | None:
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        for bucket in buckets:
+            start = bucket["start"]
+            end = bucket["end"]
+            if isinstance(start, datetime) and isinstance(end, datetime) and start <= timestamp < end:
+                label = bucket["label"]
+                return label if isinstance(label, str) else None
+        return None

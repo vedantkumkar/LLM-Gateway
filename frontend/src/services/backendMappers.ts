@@ -109,15 +109,24 @@ export interface BackendUser {
   email: string;
   role: string;
   department: string;
+  status?: "active" | "suspended" | "invited";
+  created_at?: string;
+  updated_at?: string;
+  last_active?: string | null;
 }
 
-export interface BackendPolicyConfig {
-  prompt_injection_block_threshold: number;
-  pii_action: string;
-  secret_action: string;
-  rate_limit_per_minute: number;
-  response_scanning_enabled: boolean;
-  local_defaults?: Record<string, string>;
+export interface BackendPolicy {
+  id: string;
+  name: string;
+  description: string;
+  category: Policy["category"];
+  severity: Severity;
+  threshold: number;
+  action: Policy["action"];
+  applies_to: Policy["appliesTo"];
+  applies_to_value?: string | null;
+  enabled: boolean;
+  updated_at: string;
 }
 
 export interface BackendHealth {
@@ -126,6 +135,31 @@ export interface BackendHealth {
   database: string;
   rate_limiter: string;
   llm_provider: string;
+}
+
+export interface BackendSecurityEvent {
+  id: string;
+  request_id: string;
+  timestamp: string;
+  user_email: string;
+  role: string;
+  department: string;
+  model: string;
+  decision: "ALLOW" | "REDACT_AND_ALLOW" | "BLOCK";
+  risk_score: number;
+  risk_level: string;
+  threat_type: ThreatType;
+  event: string;
+  detections_summary: string;
+  sanitized_prompt: string;
+}
+
+export interface BackendNotification {
+  id: string;
+  title: string;
+  detail: string;
+  severity: Severity;
+  timestamp: string;
 }
 
 const roleMap: Record<string, UserRole> = {
@@ -227,10 +261,13 @@ export function mapGatewayResponse(
   const hasPii = backend.detections.some((d) => d.category === "PII");
   const hasSecret = backend.detections.some((d) => d.category === "SECRET");
   const riskBreakdown: RiskBreakdown = {
-    piiRisk: hasPii ? Math.min(80, 25 * backend.detections.filter((d) => d.category === "PII").length) : 0,
+    piiRisk: hasPii
+      ? Math.min(80, 25 * backend.detections.filter((d) => d.category === "PII").length)
+      : 0,
     injectionRisk: backend.injection_analysis.score,
     secretRisk: hasSecret ? 100 : 0,
-    policyRisk: backend.decision === "BLOCK" ? 90 : backend.decision === "REDACT_AND_ALLOW" ? 40 : 0,
+    policyRisk:
+      backend.decision === "BLOCK" ? 90 : backend.decision === "REDACT_AND_ALLOW" ? 40 : 0,
   };
   const analysis = {
     detections,
@@ -266,7 +303,10 @@ export function mapGatewayResponse(
     pipeline,
     llmResponse: backend.response ?? undefined,
     responseScan: backend.response_scan_status,
-    blockedReason: backend.decision === "BLOCK" ? backend.policy_reasons.join("; ") || backend.response || "Request blocked." : undefined,
+    blockedReason:
+      backend.decision === "BLOCK"
+        ? backend.policy_reasons.join("; ") || backend.response || "Request blocked."
+        : undefined,
   };
 }
 
@@ -314,10 +354,11 @@ export function mapAudit(record: BackendAuditRecord): AuditLog {
     detections,
     latencyMs: record.latency_ms,
     status: record.decision === "BLOCK" ? "Blocked" : record.success ? "Success" : "Error",
-    authStatus: "Authenticated · Demo bearer token",
+    authStatus: "Authenticated bearer token",
     policyResult: record.decision,
     sanitizedPrompt: record.sanitized_prompt,
-    llmStatus: record.response_status === "NOT_CALLED" ? "Provider not called" : record.response_status,
+    llmStatus:
+      record.response_status === "NOT_CALLED" ? "Provider not called" : record.response_status,
     responseScan: record.response_status,
     securityChecks: [
       { name: "Authentication", result: "Pass" },
@@ -343,7 +384,7 @@ export function auditToEvent(record: BackendAuditRecord): SecurityEvent {
     user: audit.user,
     role: audit.role,
     department: audit.department,
-    sourceIp: "Demo/local",
+    sourceIp: "Server audit",
     model: audit.model,
     riskScore: audit.riskScore,
     decision: audit.decision,
@@ -358,7 +399,9 @@ export function auditToEvent(record: BackendAuditRecord): SecurityEvent {
       {
         name: "Sensitive Data Scan",
         state: record.pii_detected || record.secret_detected ? "warning" : "passed",
-        detail: audit.detections.length ? audit.detections.join(", ") : "No sensitive data detected",
+        detail: audit.detections.length
+          ? audit.detections.join(", ")
+          : "No sensitive data detected",
       },
       {
         name: "Prompt Injection Scan",
@@ -366,11 +409,19 @@ export function auditToEvent(record: BackendAuditRecord): SecurityEvent {
       },
       {
         name: "Policy Engine",
-        state: record.decision === "BLOCK" ? "blocked" : record.decision === "REDACT_AND_ALLOW" ? "warning" : "passed",
+        state:
+          record.decision === "BLOCK"
+            ? "blocked"
+            : record.decision === "REDACT_AND_ALLOW"
+              ? "warning"
+              : "passed",
         detail: record.decision,
       },
       { name: "LLM Request", state: record.decision === "BLOCK" ? "waiting" : "passed" },
-      { name: "Response Scan", state: record.response_status === "REDACTED" ? "warning" : "passed" },
+      {
+        name: "Response Scan",
+        state: record.response_status === "REDACTED" ? "warning" : "passed",
+      },
       { name: "Audit Log", state: "passed", detail: "Persisted" },
     ],
   };
@@ -385,8 +436,14 @@ export function mapModel(model: BackendModel): AIModel {
     provider: model.provider,
     type: model.id.includes("internal") || model.id.includes("mock") ? "Internal" : "External",
     status: !model.enabled ? "Disabled" : model.can_access ? "Available" : "Restricted",
-    permittedDepartments: existing?.permittedDepartments ?? ["Engineering", "Security", "Operations"],
-    notes: model.can_access ? "Accessible for current demo role." : "Restricted for current demo role.",
+    permittedDepartments: existing?.permittedDepartments ?? [
+      "Engineering",
+      "Security",
+      "Operations",
+    ],
+    notes: model.can_access
+      ? "Accessible for current demo role."
+      : "Restricted for current demo role.",
   };
 }
 
@@ -399,65 +456,82 @@ export function mapUser(user: BackendUser): DirectoryUser {
     email: user.email,
     department: toDepartment(user.department),
     role,
-    modelAccess: role === "Admin" || role === "Security Analyst" ? "All demo models" : "Permitted demo models",
-    status: "Active",
-    lastActive: "Demo session",
+    modelAccess:
+      role === "Admin" || role === "Security Analyst" ? "All demo models" : "Permitted demo models",
+    status:
+      user.status === "suspended" ? "Suspended" : user.status === "invited" ? "Invited" : "Active",
+    lastActive: user.last_active ? formatBackendTimestamp(user.last_active) : "Not recorded",
   };
 }
 
-export function mapPolicies(config: BackendPolicyConfig): Policy[] {
-  const byName = new Map(mockPolicies.map((policy) => [policy.name, policy]));
-  return [
-    {
-      ...(byName.get("Prompt Injection Defense") ?? mockPolicies[0]!),
-      id: "backend-injection-threshold",
-      name: "Prompt Injection Defense",
-      description: `Backend blocks prompts at score ${config.prompt_injection_block_threshold}.`,
-      category: "Prompt Injection",
-      severity: "critical",
-      threshold: config.prompt_injection_block_threshold,
-      action: "Block",
-      enabled: true,
-      updatedAt: "Backend",
-    },
-    {
-      ...(byName.get("PII Redaction Policy") ?? mockPolicies[1]!),
-      id: "backend-pii-action",
-      name: "PII Redaction Policy",
-      description: `Backend PII action: ${config.pii_action}.`,
-      category: "PII",
-      severity: "medium",
-      threshold: 50,
-      action: config.pii_action.includes("BLOCK") ? "Block" : "Redact",
-      enabled: true,
-      updatedAt: "Backend",
-    },
-    {
-      ...(byName.get("Secret Key Blocking") ?? mockPolicies[2]!),
-      id: "backend-secret-action",
-      name: "Secret Key Blocking",
-      description: `Backend secret action: ${config.secret_action}.`,
-      category: "Secrets",
-      severity: "critical",
-      threshold: 1,
-      action: "Block",
-      enabled: true,
-      updatedAt: "Backend",
-    },
-    {
-      ...(byName.get("Rate Limit Policy") ?? mockPolicies[3]!),
-      id: "backend-rate-limit",
-      name: "Rate Limit Policy",
-      description: `${config.rate_limit_per_minute} requests per minute per user.`,
-      category: "Rate Limit",
-      severity: "medium",
-      threshold: config.rate_limit_per_minute,
-      action: "Restrict",
-      enabled: true,
-      updatedAt: "Backend",
-    },
-    ...mockPolicies.slice(4),
-  ];
+export function mapPolicy(policy: BackendPolicy): Policy {
+  return {
+    id: policy.id,
+    name: policy.name,
+    description: policy.description,
+    category: policy.category,
+    severity: policy.severity,
+    threshold: policy.threshold,
+    action: policy.action,
+    appliesTo: policy.applies_to,
+    appliesToValue: policy.applies_to_value ?? undefined,
+    enabled: policy.enabled,
+    updatedAt: formatBackendTimestamp(policy.updated_at),
+  };
+}
+
+export function eventFromBackend(event: BackendSecurityEvent): SecurityEvent {
+  const detections = parseDetections(event.detections_summary);
+  return {
+    id: event.id,
+    timestamp: formatBackendTimestamp(event.timestamp),
+    relativeTime: relativeTime(event.timestamp),
+    severity: severityFromRisk(event.risk_score),
+    threatType: event.threat_type,
+    event: event.event,
+    user: event.user_email,
+    role: toRole(event.role),
+    department: toDepartment(event.department),
+    sourceIp: "Server audit",
+    model: modelNames[event.model] ?? event.model,
+    riskScore: Math.round(event.risk_score),
+    decision: event.decision,
+    policyTriggered: event.decision,
+    requestId: event.request_id,
+    detections: detections.map((type) => ({ type, value: `<${type}>`, confidence: 100 })),
+    sanitizedPrompt: event.sanitized_prompt,
+    pipeline: auditToEvent({
+      id: Number(event.id) || 0,
+      request_id: event.request_id,
+      timestamp: event.timestamp,
+      user_id: "",
+      user_email: event.user_email,
+      role: event.role,
+      department: event.department,
+      model: event.model,
+      decision: event.decision,
+      risk_score: event.risk_score,
+      risk_level: event.risk_level,
+      pii_detected: detections.includes("EMAIL_ADDRESS") || detections.includes("PHONE_NUMBER"),
+      secret_detected: detections.some((type) => type.includes("KEY") || type.includes("SECRET")),
+      injection_detected: event.threat_type === "Prompt Injection",
+      detections_summary: event.detections_summary,
+      sanitized_prompt: event.sanitized_prompt,
+      response_status: event.decision === "BLOCK" ? "BLOCKED" : "SAFE",
+      latency_ms: 0,
+      success: true,
+    }).pipeline,
+  };
+}
+
+export function notificationFromBackend(notification: BackendNotification) {
+  return {
+    id: notification.id,
+    title: notification.title,
+    detail: notification.detail,
+    severity: notification.severity,
+    time: relativeTime(notification.timestamp),
+  };
 }
 
 export function mapHealth(health: BackendHealth, metrics?: DashboardMetrics): SystemHealth {
@@ -492,29 +566,45 @@ export function mapHealth(health: BackendHealth, metrics?: DashboardMetrics): Sy
       {
         name: "Redis Rate Limiter",
         status: health.rate_limiter === "operational" ? "Operational" : "Degraded",
-        detail: `Real backend limiter status: ${health.rate_limiter}; no Redis cluster is running in demo`,
+        detail: `Real backend limiter status: ${health.rate_limiter}`,
       },
       {
         name: "LLM Provider",
         status: "Operational",
-        detail: `Real backend provider mode: ${health.llm_provider}; external provider telemetry is simulated`,
+        detail: `Real backend provider mode: ${health.llm_provider}`,
       },
     ],
-    uptime: "Demo session · real /health checked",
+    uptime: "Live backend health checked",
     requestsPerMinute: 0,
     averageLatencyMs: metrics?.gatewayLatencyMs ?? 0,
     errorRate: gatewayHealthy ? 0 : 1,
     activeConnections: 1,
     databaseLatencyMs: 1,
     cacheHitRate: 0,
-    instances: [{ name: "local-gateway-1", status: gatewayHealthy ? "Healthy" : "Degraded", region: "Simulated local replica", load: 18 }],
+    instances: [
+      {
+        name: "local-gateway-1",
+        status: gatewayHealthy ? "Healthy" : "Degraded",
+        region: "Simulated local replica",
+        load: 18,
+      },
+    ],
     throughput: [
       { label: "Now", rpm: 0, latency: metrics?.gatewayLatencyMs ?? 0 },
-      { label: "Demo", rpm: 0, latency: metrics?.gatewayLatencyMs ?? 0 },
+      { label: "Current", rpm: 0, latency: metrics?.gatewayLatencyMs ?? 0 },
     ],
   };
 }
 
-export function backendRolePermissions() {
-  return mockRolePermissions;
+export function backendRolePermissions(permissions: Record<string, string[]>) {
+  return mockRolePermissions.map((role) => {
+    const backendRole = Object.entries(roleMap).find(([, label]) => label === role.role)?.[0];
+    const allowed = new Set(backendRole ? (permissions[backendRole] ?? []) : []);
+    return {
+      ...role,
+      permissions: Object.fromEntries(
+        Object.keys(role.permissions).map((key) => [key, allowed.has(key) || allowed.has("*")]),
+      ),
+    };
+  });
 }

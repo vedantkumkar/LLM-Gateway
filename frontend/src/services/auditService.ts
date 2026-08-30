@@ -1,9 +1,11 @@
 import { apiEndpoints, request, USE_MOCK_API } from "./api";
 import {
   auditToEvent,
+  eventFromBackend,
   mapAudit,
   parseBackendTimestamp,
   type BackendAuditRecord,
+  type BackendSecurityEvent,
 } from "./backendMappers";
 import { mockAuditLogs, mockSecurityEvents } from "@/data/mockData";
 import type { AuditLog, SecurityEvent } from "@/types";
@@ -26,12 +28,12 @@ export async function getSecurityEvents(filters: EventFilters = {}): Promise<Sec
       mock: () => applyEventFilters(mockSecurityEvents, filters),
     });
   }
-  const records = await request<BackendAuditRecord[]>({
-    path: apiEndpoints.audit,
+  const records = await request<BackendSecurityEvent[]>({
+    path: apiEndpoints.securityEvents,
     query: { limit: 100 },
-    mock: () => [] as BackendAuditRecord[],
+    mock: () => [] as BackendSecurityEvent[],
   });
-  return applyEventFilters(sortAuditRecords(records).map(auditToEvent), filters);
+  return applyEventFilters(records.map(eventFromBackend), filters);
 }
 
 function matches(value: string, filter?: string) {
@@ -85,7 +87,8 @@ export async function getAuditLogs(filters: AuditFilters = {}): Promise<AuditLog
 
 function sortAuditRecords(records: BackendAuditRecord[]) {
   return [...records].sort(
-    (a, b) => parseBackendTimestamp(b.timestamp).getTime() - parseBackendTimestamp(a.timestamp).getTime(),
+    (a, b) =>
+      parseBackendTimestamp(b.timestamp).getTime() - parseBackendTimestamp(a.timestamp).getTime(),
   );
 }
 

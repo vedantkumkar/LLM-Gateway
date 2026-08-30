@@ -22,7 +22,6 @@ import {
   YAxis,
 } from "recharts";
 import { getAnalytics, type TimeRange } from "@/services/dashboardService";
-import { USE_MOCK_API } from "@/services/api";
 import type { AnalyticsBundle } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +77,7 @@ function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const trendPrefix = USE_MOCK_API ? "" : "Demo trend · ";
+  const trendPrefix = "";
 
   const load = (r: TimeRange) => {
     setLoading(true);
@@ -459,7 +458,10 @@ function AnalyticsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Average Latency" subtitle={`${trendPrefix}Gateway response latency over time`}>
+          <SectionCard
+            title="Average Latency"
+            subtitle={`${trendPrefix}Gateway response latency over time`}
+          >
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart

@@ -8,7 +8,15 @@ from app.schemas.schemas import User
 
 ROLE_PERMISSIONS: dict[str, set[str]] = {
     "admin": {"*"},
-    "security_analyst": {"audit:read_all", "metrics:read", "models:read", "playground:use", "users:read", "policies:read"},
+    "security_analyst": {
+        "audit:read_all",
+        "metrics:read",
+        "models:read",
+        "playground:use",
+        "users:read",
+        "policies:read",
+        "policies:write",
+    },
     "developer": {"audit:read_own", "models:read", "playground:use", "policies:read"},
     "employee": {"audit:read_own", "models:read", "playground:use"},
     "auditor": {"audit:read_all", "metrics:read", "policies:read"},

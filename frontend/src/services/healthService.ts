@@ -1,5 +1,12 @@
 import { apiEndpoints, request, USE_MOCK_API } from "./api";
-import { mapHealth, mapMetrics, type BackendHealth, type BackendMetrics } from "./backendMappers";
+import {
+  mapHealth,
+  mapMetrics,
+  notificationFromBackend,
+  type BackendHealth,
+  type BackendMetrics,
+  type BackendNotification,
+} from "./backendMappers";
 import { mockNotifications, mockSettings, mockSystemHealth } from "@/data/mockData";
 import type { AppNotification, GatewaySettings, SystemHealth } from "@/types";
 
@@ -24,31 +31,30 @@ export async function getSystemHealth(): Promise<SystemHealth> {
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
-  return USE_MOCK_API
-    ? request<AppNotification[]>({
-        path: apiEndpoints.notifications,
-        mockDelayMs: 180,
-        mock: () => mockNotifications,
-      })
-    : mockNotifications;
+  if (USE_MOCK_API) {
+    return request<AppNotification[]>({
+      path: apiEndpoints.notifications,
+      mockDelayMs: 180,
+      mock: () => mockNotifications,
+    });
+  }
+  const notifications = await request<BackendNotification[]>({
+    path: apiEndpoints.notifications,
+    mock: () => [] as BackendNotification[],
+  });
+  return notifications.map(notificationFromBackend);
 }
 
 let settings: GatewaySettings = structuredClone(mockSettings);
 
 export async function getSettings(): Promise<GatewaySettings> {
-  return USE_MOCK_API
-    ? request<GatewaySettings>({
-        path: apiEndpoints.settings,
-        mock: () => structuredClone(settings),
-      })
-    : structuredClone(settings);
+  return request<GatewaySettings>({
+    path: apiEndpoints.settings,
+    mock: () => structuredClone(settings),
+  });
 }
 
 export async function updateSettings(next: GatewaySettings): Promise<GatewaySettings> {
-  if (!USE_MOCK_API) {
-    settings = structuredClone(next);
-    return structuredClone(settings);
-  }
   return request<GatewaySettings>({
     path: apiEndpoints.settings,
     method: "PUT",

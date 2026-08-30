@@ -6,6 +6,11 @@ from pydantic import BaseModel, Field
 
 Decision = Literal["ALLOW", "REDACT_AND_ALLOW", "BLOCK"]
 RiskLevel = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+Role = Literal["admin", "security_analyst", "developer", "employee", "auditor"]
+UserStatus = Literal["active", "suspended", "invited"]
+PolicyCategory = Literal["PII", "Secrets", "Prompt Injection", "DLP", "Model Access"]
+PolicyAction = Literal["Allow", "Alert", "Redact", "Block", "Restrict"]
+PolicySeverity = Literal["low", "medium", "high", "critical"]
 
 
 class User(BaseModel):
@@ -14,6 +19,21 @@ class User(BaseModel):
     email: str
     role: str
     department: str
+
+
+class UserProfileResponse(User):
+    status: UserStatus
+    created_at: datetime
+    updated_at: datetime
+    last_active: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserUpdateRequest(BaseModel):
+    role: Role | None = None
+    department: str | None = None
+    status: UserStatus | None = None
 
 
 class ChatRequest(BaseModel):
@@ -108,3 +128,160 @@ class MetricsSummary(BaseModel):
     average_latency_ms: float
     recent_security_events: list[dict[str, Any]]
 
+
+class TrafficPoint(BaseModel):
+    label: str
+    total: int
+    allowed: int
+    redacted: int = 0
+    blocked: int
+
+
+class ThreatTrendPoint(BaseModel):
+    label: str
+    injection: int
+    pii: int
+    secrets: int
+
+
+class ThreatCategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+class DecisionCount(BaseModel):
+    decision: str
+    value: int
+
+
+class LatencyPoint(BaseModel):
+    label: str
+    latency: int
+
+
+class AnalyticsBundleResponse(BaseModel):
+    requestVolume: list[TrafficPoint]
+    threatTrends: list[ThreatTrendPoint]
+    piiCategories: list[ThreatCategoryCount]
+    modelUsage: list[ThreatCategoryCount]
+    departmentUsage: list[ThreatCategoryCount]
+    blockedVsAllowed: list[DecisionCount]
+    riskDistribution: list[ThreatCategoryCount]
+    latencyTrend: list[LatencyPoint]
+
+
+class SecurityPostureResponse(BaseModel):
+    status: Literal["SECURE", "DEGRADED", "AT RISK"]
+    score: int
+    label: str
+    controls: list[dict[str, str]]
+
+
+class GatewaySettingsGeneral(BaseModel):
+    organization: str
+    environment: str
+    defaultModel: str
+
+
+class GatewaySettingsSecurity(BaseModel):
+    defaultRiskThreshold: int = Field(ge=0, le=100)
+    injectionThreshold: int = Field(ge=0, le=100)
+    piiHandling: Literal["Redact", "Block", "Alert"]
+    enableResponseScanning: bool
+    enableSecretDetection: bool
+
+
+class GatewaySettingsRateLimits(BaseModel):
+    maxRequestsPerMinute: int = Field(ge=1, le=10000)
+    burstAllowance: int = Field(ge=0, le=10000)
+
+
+class GatewaySettingsAudit(BaseModel):
+    retentionDays: int = Field(ge=1, le=3650)
+    immutableStorage: bool = True
+
+
+class GatewaySettingsNotifications(BaseModel):
+    criticalEmail: bool = False
+    slackAlerts: bool = False
+    weeklyDigest: bool = False
+
+
+class GatewaySettingsDeveloper(BaseModel):
+    enableSemanticCache: bool = False
+    verboseLogging: bool = False
+
+
+class GatewaySettingsResponse(BaseModel):
+    general: GatewaySettingsGeneral
+    security: GatewaySettingsSecurity
+    rateLimits: GatewaySettingsRateLimits
+    audit: GatewaySettingsAudit
+    notifications: GatewaySettingsNotifications
+    developer: GatewaySettingsDeveloper
+
+
+class PolicyResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: PolicyCategory
+    severity: PolicySeverity
+    threshold: int
+    action: PolicyAction
+    applies_to: Literal["Organization", "Department", "Role", "User"]
+    applies_to_value: str | None = None
+    enabled: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PolicyWriteRequest(BaseModel):
+    name: str
+    description: str = ""
+    category: PolicyCategory
+    severity: PolicySeverity = "medium"
+    threshold: int = Field(default=0, ge=0, le=1000)
+    action: PolicyAction
+    applies_to: Literal["Organization", "Department", "Role", "User"] = "Organization"
+    applies_to_value: str | None = None
+    enabled: bool = True
+
+
+class PolicyPatchRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    category: PolicyCategory | None = None
+    severity: PolicySeverity | None = None
+    threshold: int | None = Field(default=None, ge=0, le=1000)
+    action: PolicyAction | None = None
+    applies_to: Literal["Organization", "Department", "Role", "User"] | None = None
+    applies_to_value: str | None = None
+    enabled: bool | None = None
+
+
+class SecurityEventResponse(BaseModel):
+    id: str
+    request_id: str
+    timestamp: datetime
+    user_email: str
+    role: str
+    department: str
+    model: str
+    decision: str
+    risk_score: float
+    risk_level: str
+    threat_type: str
+    event: str
+    detections_summary: str
+    sanitized_prompt: str
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    title: str
+    detail: str
+    severity: str
+    timestamp: datetime

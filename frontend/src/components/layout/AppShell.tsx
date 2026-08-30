@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { SidebarContent } from "./Sidebar";
 import { Header } from "./Header";
-import { getStoredUser } from "@/services/authService";
+import { subscribeToAuthChanges, verifySession } from "@/services/authService";
 import { canAccessRoute, firstAllowedRoute } from "@/services/rbacService";
 import type { AuthUser } from "@/types";
 import { cn } from "@/lib/utils";
@@ -28,17 +28,33 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredUser();
-    if (!stored) {
-      void navigate({ to: "/" });
-      return;
+    let cancelled = false;
+    verifySession().then((stored) => {
+      if (cancelled) return;
+      if (!stored) {
+        void navigate({ to: "/" });
+        return;
+      }
+      setUser(stored);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
+
+  useEffect(() => {
+    return subscribeToAuthChanges((nextUser) => {
+      setUser(nextUser);
+      if (!nextUser) void navigate({ to: "/" });
+    });
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!canAccessRoute(user.role, location.pathname)) {
+      void navigate({ to: firstAllowedRoute[user.role], replace: true });
     }
-    if (!canAccessRoute(stored.role, location.pathname)) {
-      void navigate({ to: firstAllowedRoute[stored.role], replace: true });
-      return;
-    }
-    setUser(stored);
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, user]);
 
   if (!user) {
     return (
@@ -76,9 +92,7 @@ export function AppShell({
                 {heading && (
                   <h2 className="text-xl font-semibold tracking-tight md:text-2xl">{heading}</h2>
                 )}
-                {subheading && (
-                  <p className="mt-1 text-sm text-muted-foreground">{subheading}</p>
-                )}
+                {subheading && <p className="mt-1 text-sm text-muted-foreground">{subheading}</p>}
               </div>
               {actions}
             </div>

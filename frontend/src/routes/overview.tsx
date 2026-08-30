@@ -48,7 +48,6 @@ import {
   type TimeRange,
 } from "@/services/dashboardService";
 import { getSecurityEvents } from "@/services/auditService";
-import { USE_MOCK_API } from "@/services/api";
 import type {
   DashboardMetrics,
   DecisionBreakdown,
@@ -100,12 +99,12 @@ function OverviewPage() {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const trendPrefix = USE_MOCK_API ? "" : "Demo trend · ";
+  const trendPrefix = "";
 
   const load = (r: TimeRange) => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getDashboardSummary(r),
       getSecurityPosture(),
       getTrafficSeries(r),
@@ -114,14 +113,19 @@ function OverviewPage() {
       getSecurityEvents(),
     ])
       .then(([m, p, t, d, th, e]) => {
-        setMetrics(m);
-        setPosture(p);
-        setTraffic(t);
-        setDecisions(d);
-        setThreats(th);
-        setEvents(e.slice(0, 6));
+        const failures = [m, p, t, d, th, e].filter((result) => result.status === "rejected");
+        if (m.status === "fulfilled") setMetrics(m.value);
+        if (p.status === "fulfilled") setPosture(p.value);
+        if (t.status === "fulfilled") setTraffic(t.value);
+        if (d.status === "fulfilled") setDecisions(d.value);
+        if (th.status === "fulfilled") setThreats(th.value);
+        if (e.status === "fulfilled") setEvents(e.value.slice(0, 6));
+        if (failures.length > 0) {
+          setError(
+            `${failures.length} dashboard section${failures.length === 1 ? "" : "s"} failed to load.`,
+          );
+        }
       })
-      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
@@ -287,8 +291,16 @@ function OverviewPage() {
                         <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--color-border)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11 }}
+                      stroke="var(--color-muted-foreground)"
+                    />
                     <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
                     <Tooltip
                       contentStyle={{
@@ -384,8 +396,16 @@ function OverviewPage() {
                     layout="vertical"
                     margin={{ top: 4, right: 16, bottom: 0, left: 42 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--color-border)"
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 11 }}
+                      stroke="var(--color-muted-foreground)"
+                    />
                     <YAxis
                       type="category"
                       dataKey="category"
@@ -401,7 +421,12 @@ function OverviewPage() {
                         fontSize: 12,
                       }}
                     />
-                    <Bar dataKey="count" name="Detections" fill="var(--color-chart-1)" radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="count"
+                      name="Detections"
+                      fill="var(--color-chart-1)"
+                      radius={[0, 4, 4, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -449,7 +474,9 @@ function OverviewPage() {
                       <TableCell>
                         <DecisionBadge decision={e.decision} />
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{e.relativeTime}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {e.relativeTime}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

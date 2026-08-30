@@ -21,32 +21,47 @@ export async function getUsers(): Promise<DirectoryUser[]> {
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<DirectoryUser[]> {
-  if (!USE_MOCK_API) {
-    users = users.map((u) => (u.id === id ? { ...u, role } : u));
-    return users.map((u) => ({ ...u }));
+  if (USE_MOCK_API) {
+    return request<DirectoryUser[]>({
+      path: `${apiEndpoints.users}/${id}`,
+      method: "PATCH",
+      body: { role },
+      mockDelayMs: 300,
+      mock: () => {
+        users = users.map((u) => (u.id === id ? { ...u, role } : u));
+        return users.map((u) => ({ ...u }));
+      },
+    });
   }
-  return request<DirectoryUser[]>({
+  const backend = await request<BackendUser>({
     path: `${apiEndpoints.users}/${id}`,
     method: "PATCH",
-    body: { role },
-    mockDelayMs: 300,
-    mock: () => {
-      users = users.map((u) => (u.id === id ? { ...u, role } : u));
-      return users.map((u) => ({ ...u }));
-    },
+    body: { role: roleToBackend(role) },
+    mock: () => ({}) as BackendUser,
   });
+  users = users.map((u) => (u.id === id ? mapUser(backend) : u));
+  return users.map((u) => ({ ...u }));
 }
 
 export async function getRolePermissions(): Promise<RolePermission[]> {
-  return USE_MOCK_API
-    ? request<RolePermission[]>({
-        path: `${apiEndpoints.users}/permissions`,
-        mock: () => mockRolePermissions,
-      })
-    : backendRolePermissions();
+  if (USE_MOCK_API) {
+    return request<RolePermission[]>({
+      path: `${apiEndpoints.users}/permissions`,
+      mock: () => mockRolePermissions,
+    });
+  }
+  const permissions = await request<Record<string, string[]>>({
+    path: `${apiEndpoints.users}/permissions`,
+    mock: () => ({}),
+  });
+  return backendRolePermissions(permissions);
 }
 
 export const capabilities = rbacCapabilities;
+
+function roleToBackend(role: UserRole) {
+  return role.toLowerCase().replaceAll(" ", "_");
+}
 
 export function summarizeUsers(list: DirectoryUser[]) {
   const byRole = (role: UserRole) => list.filter((u) => u.role === role).length;

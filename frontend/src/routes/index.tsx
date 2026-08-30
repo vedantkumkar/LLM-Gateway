@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { demoAccounts, login } from "@/services/authService";
+import { USE_MOCK_API } from "@/services/api";
+import { demoAccounts, login, signup } from "@/services/authService";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,10 +37,26 @@ export const Route = createFileRoute("/")({
 });
 
 const highlights = [
-  { icon: Fingerprint, title: "Zero Trust Access", detail: "Every prompt authenticated and authorized" },
-  { icon: ShieldHalf, title: "Prompt Protection", detail: "Injection and jailbreak defense at the edge" },
-  { icon: Lock, title: "Data Loss Prevention", detail: "PII, PHI and secret redaction before egress" },
-  { icon: FileSearch, title: "Continuous Audit", detail: "Immutable traceability for every request" },
+  {
+    icon: Fingerprint,
+    title: "Zero Trust Access",
+    detail: "Every prompt authenticated and authorized",
+  },
+  {
+    icon: ShieldHalf,
+    title: "Prompt Protection",
+    detail: "Injection and jailbreak defense at the edge",
+  },
+  {
+    icon: Lock,
+    title: "Data Loss Prevention",
+    detail: "PII, PHI and secret redaction before egress",
+  },
+  {
+    icon: FileSearch,
+    title: "Continuous Audit",
+    detail: "Immutable traceability for every request",
+  },
 ];
 
 function LoginPage() {
@@ -47,8 +64,11 @@ function LoginPage() {
   const [email, setEmail] = useState("security@example.com");
   const [password, setPassword] = useState("demo-password");
   const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,12 +77,23 @@ function LoginPage() {
       return;
     }
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
-      await login({ email, password });
+      if (mode === "signup" && !USE_MOCK_API) {
+        const result = await signup({ email, password, name });
+        if (result === "verify_email") {
+          setNotice("Account created. Verify your email before signing in.");
+          return;
+        }
+      } else {
+        await login({ email, password });
+      }
       await navigate({ to: "/overview" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to establish a session. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Unable to establish a session. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -88,7 +119,10 @@ function LoginPage() {
           </p>
           <ul className="mt-8 grid gap-3">
             {highlights.map((h) => (
-              <li key={h.title} className="flex items-start gap-3 rounded-md border border-sidebar-border bg-sidebar-accent/40 p-3">
+              <li
+                key={h.title}
+                className="flex items-start gap-3 rounded-md border border-sidebar-border bg-sidebar-accent/40 p-3"
+              >
                 <h.icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                 <div>
                   <p className="text-sm font-medium">{h.title}</p>
@@ -116,12 +150,29 @@ function LoginPage() {
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold tracking-tight">Sign in to the gateway</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            {mode === "signup" && !USE_MOCK_API
+              ? "Create gateway account"
+              : "Sign in to the gateway"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Use your corporate credentials to continue.
           </p>
 
           <form onSubmit={submit} className="mt-6 grid gap-4">
+            {mode === "signup" && !USE_MOCK_API && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="email">Corporate Email</Label>
               <Input
@@ -156,42 +207,63 @@ function LoginPage() {
             </div>
 
             {error && (
-              <p role="alert" className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger">
+              <p
+                role="alert"
+                className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
+              >
                 {error}
+              </p>
+            )}
+            {notice && (
+              <p className="rounded-md border border-safe/30 bg-safe-soft px-3 py-2 text-xs text-safe">
+                {notice}
               </p>
             )}
 
             <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Sign In
+              {mode === "signup" && !USE_MOCK_API ? "Create Account" : "Sign In"}
             </Button>
-            <Button type="button" variant="outline" className="w-full" disabled={loading}>
-              Corporate SSO unavailable in demo
-            </Button>
+            {!USE_MOCK_API && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={loading}
+                onClick={() => setMode((current) => (current === "signin" ? "signup" : "signin"))}
+              >
+                {mode === "signin" ? "Create account" : "Use existing account"}
+              </Button>
+            )}
           </form>
 
-          <div className="mt-4 rounded-md border border-border bg-card p-3">
-            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Demo accounts
-            </p>
-            <div className="mt-2 grid gap-1">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => setEmail(account.email)}
-                  className="flex items-center justify-between rounded px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <span>{account.role}</span>
-                  <span className="font-mono">{account.email}</span>
-                </button>
-              ))}
+          {USE_MOCK_API && (
+            <div className="mt-4 rounded-md border border-border bg-card p-3">
+              <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Demo accounts
+              </p>
+              <div className="mt-2 grid gap-1">
+                {demoAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => setEmail(account.email)}
+                    className="flex items-center justify-between rounded px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <span>{account.role}</span>
+                    <span className="font-mono">{account.email}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-2 lg:hidden">
             {highlights.map((h) => (
-              <span key={h.title} className="rounded-md border border-border bg-card px-2 py-1.5 text-[11px] text-muted-foreground">
+              <span
+                key={h.title}
+                className="rounded-md border border-border bg-card px-2 py-1.5 text-[11px] text-muted-foreground"
+              >
                 {h.title}
               </span>
             ))}

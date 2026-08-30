@@ -1,10 +1,20 @@
+from datetime import datetime, timedelta, timezone
+import hashlib
+
+import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
+from app.config import Settings, get_settings
+from app.database.database import get_db
+from app.database.models import UserProfile
 from app.schemas.schemas import User
 
 
 security = HTTPBearer(auto_error=False)
+SUPABASE_IDENTITY_CACHE_TTL = timedelta(seconds=45)
+_supabase_identity_cache: dict[str, tuple[datetime, dict[str, object]]] = {}
 
 
 DEMO_USERS: dict[str, User] = {
@@ -46,11 +56,110 @@ DEMO_USERS: dict[str, User] = {
 }
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> User:
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"message": "Missing bearer token"})
-    user = DEMO_USERS.get(credentials.credentials)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"message": "Invalid bearer token"})
-    return user
+def _auth_error(message: str = "Invalid bearer token") -> HTTPException:
+    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"message": message})
 
+
+def _profile_to_user(profile: UserProfile) -> User:
+    return User(
+        id=profile.id,
+        name=profile.name or profile.email.split("@")[0],
+        email=profile.email,
+        role=profile.role,
+        department=profile.department,
+    )
+
+
+async def _fetch_supabase_user(token: str, settings: Settings) -> dict[str, object]:
+    if not settings.supabase_url or not settings.supabase_publishable_key:
+        raise _auth_error("Supabase authentication is not configured")
+    url = f"{settings.supabase_url.rstrip('/')}/auth/v1/user"
+    headers = {
+        "apikey": settings.supabase_publishable_key,
+        "Authorization": f"Bearer {token}",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+            response = await client.get(url, headers=headers)
+    except httpx.HTTPError as exc:
+        raise _auth_error() from exc
+    if response.status_code != 200:
+        raise _auth_error()
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise _auth_error() from exc
+    if not isinstance(payload, dict):
+        raise _auth_error()
+    return payload
+
+
+async def _get_supabase_identity(token: str, settings: Settings) -> dict[str, object]:
+    cache_key = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc)
+    cached = _supabase_identity_cache.get(cache_key)
+    if cached is not None:
+        expires_at, payload = cached
+        if expires_at > now:
+            return payload
+        _supabase_identity_cache.pop(cache_key, None)
+    payload = await _fetch_supabase_user(token, settings)
+    _supabase_identity_cache[cache_key] = (now + SUPABASE_IDENTITY_CACHE_TTL, payload)
+    return payload
+
+
+def _name_from_supabase(payload: dict[str, object], email: str) -> str:
+    metadata = payload.get("user_metadata")
+    if isinstance(metadata, dict):
+        for key in ("name", "full_name", "display_name"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return email.split("@")[0]
+
+
+def _bootstrap_profile(db: Session, payload: dict[str, object], settings: Settings) -> UserProfile:
+    user_id = payload.get("id")
+    email = payload.get("email")
+    if not isinstance(user_id, str) or not user_id:
+        raise _auth_error()
+    if not isinstance(email, str) or not email:
+        raise _auth_error()
+    normalized_email = email.lower()
+    profile = db.get(UserProfile, user_id)
+    if profile is None:
+        profile = UserProfile(
+            id=user_id,
+            email=normalized_email,
+            name=_name_from_supabase(payload, normalized_email),
+            role="admin" if normalized_email in settings.bootstrap_admin_email_set else "employee",
+            department="Operations",
+            status="active",
+        )
+        db.add(profile)
+    profile.email = normalized_email
+    profile.last_active = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(profile)
+    if profile.status == "suspended":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"message": "User account is suspended"})
+    return profile
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise _auth_error("Missing bearer token")
+    auth_backend = settings.auth_backend.strip().lower()
+    if auth_backend == "demo":
+        user = DEMO_USERS.get(credentials.credentials)
+        if not user:
+            raise _auth_error()
+        return user
+    if auth_backend == "supabase":
+        payload = await _get_supabase_identity(credentials.credentials, settings)
+        return _profile_to_user(_bootstrap_profile(db, payload, settings))
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"message": "Invalid AUTH_BACKEND"})

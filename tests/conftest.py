@@ -8,14 +8,18 @@ os.environ["PII_ENGINE"] = "auto"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.database.database import Base, engine  # noqa: E402
+from app.database.database import Base, engine, seed_default_policies, seed_default_settings  # noqa: E402
 from app.main import app  # noqa: E402
+from app.auth.authentication import _supabase_identity_cache  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def reset_database():
+    _supabase_identity_cache.clear()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    seed_default_policies()
+    seed_default_settings()
     yield
     Base.metadata.drop_all(bind=engine)
 
