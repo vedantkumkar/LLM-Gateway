@@ -3,6 +3,9 @@ from app.config import get_settings
 from app.database.database import SessionLocal
 from app.database.models import UserProfile
 
+TEST_BEARER = "test-bearer-token-value"
+TEST_PUBLISHABLE_KEY = "test-publishable-key-value"
+
 
 def test_unauthorized_chat_request(client):
     response = client.post("/api/v1/chat", json={"message": "Hello", "model": "internal-secure-llm"})
@@ -17,7 +20,7 @@ def test_demo_auth_still_works(client):
     assert response.json()["role"] == "employee"
 
 
-def test_supabase_missing_token_returns_401(client, monkeypatch):
+def test_supabase_missing_token_returns_401(client, monkeypatch, caplog):
     monkeypatch.setenv("AUTH_BACKEND", "supabase")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "publishable")
@@ -28,6 +31,21 @@ def test_supabase_missing_token_returns_401(client, monkeypatch):
     response = client.get("/api/v1/auth/me")
 
     assert response.status_code == 401
+    assert "AUTH_DIAG missing_bearer_token" in caplog.text
+    get_settings.cache_clear()
+
+
+def test_supabase_config_missing_returns_safe_401_and_diagnostic(client, monkeypatch, caplog):
+    monkeypatch.setenv("AUTH_BACKEND", "supabase")
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_PUBLISHABLE_KEY", raising=False)
+    get_settings.cache_clear()
+
+    response = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {TEST_BEARER}"})
+
+    assert response.status_code == 401
+    assert "AUTH_DIAG supabase_config_missing url_present=False key_present=False" in caplog.text
+    assert TEST_BEARER not in caplog.text
     get_settings.cache_clear()
 
 
@@ -70,7 +88,7 @@ def test_supabase_valid_user_bootstraps_employee_profile(client, monkeypatch):
     get_settings.cache_clear()
 
 
-def test_invalid_supabase_token_returns_401(client, monkeypatch):
+def test_invalid_supabase_token_returns_401(client, monkeypatch, caplog):
     class FakeResponse:
         status_code = 401
 
@@ -95,12 +113,48 @@ def test_invalid_supabase_token_returns_401(client, monkeypatch):
     monkeypatch.setattr(auth_module.httpx, "AsyncClient", FakeAsyncClient)
     monkeypatch.setenv("AUTH_BACKEND", "supabase")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
-    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "publishable")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", TEST_PUBLISHABLE_KEY)
     get_settings.cache_clear()
 
-    response = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer expired-token"})
+    response = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {TEST_BEARER}"})
 
     assert response.status_code == 401
+    assert "AUTH_DIAG supabase_user_rejected status=401" in caplog.text
+    assert TEST_BEARER not in caplog.text
+    assert TEST_PUBLISHABLE_KEY not in caplog.text
+    get_settings.cache_clear()
+
+
+def test_supabase_network_timeout_returns_safe_401(client, monkeypatch, caplog):
+    class FakeAsyncClient:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, headers):
+            import httpx
+
+            raise httpx.ConnectTimeout("timed out")
+
+    import app.auth.authentication as auth_module
+
+    monkeypatch.setattr(auth_module.httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setenv("AUTH_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", TEST_PUBLISHABLE_KEY)
+    get_settings.cache_clear()
+
+    response = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {TEST_BEARER}"})
+
+    assert response.status_code == 401
+    assert "AUTH_DIAG supabase_network_error error_type=ConnectTimeout" in caplog.text
+    assert TEST_BEARER not in caplog.text
+    assert TEST_PUBLISHABLE_KEY not in caplog.text
     get_settings.cache_clear()
 
 

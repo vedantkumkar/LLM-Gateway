@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
+import logging
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, HTTPException, status
@@ -15,6 +17,7 @@ from app.schemas.schemas import User
 security = HTTPBearer(auto_error=False)
 SUPABASE_IDENTITY_CACHE_TTL = timedelta(seconds=45)
 _supabase_identity_cache: dict[str, tuple[datetime, dict[str, object]]] = {}
+logger = logging.getLogger("app.auth")
 
 
 DEMO_USERS: dict[str, User] = {
@@ -60,6 +63,16 @@ def _auth_error(message: str = "Invalid bearer token") -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"message": message})
 
 
+def _safe_supabase_host(url: str) -> str:
+    host = urlparse(url).hostname
+    return host or "invalid"
+
+
+def _auth_diag(reason: str, **fields: object) -> None:
+    details = " ".join(f"{key}={value}" for key, value in fields.items())
+    logger.warning("AUTH_DIAG %s%s%s", reason, " " if details else "", details)
+
+
 def _profile_to_user(profile: UserProfile) -> User:
     return User(
         id=profile.id,
@@ -72,6 +85,11 @@ def _profile_to_user(profile: UserProfile) -> User:
 
 async def _fetch_supabase_user(token: str, settings: Settings) -> dict[str, object]:
     if not settings.supabase_url or not settings.supabase_publishable_key:
+        _auth_diag(
+            "supabase_config_missing",
+            url_present=bool(settings.supabase_url),
+            key_present=bool(settings.supabase_publishable_key),
+        )
         raise _auth_error("Supabase authentication is not configured")
     url = f"{settings.supabase_url.rstrip('/')}/auth/v1/user"
     headers = {
@@ -82,15 +100,28 @@ async def _fetch_supabase_user(token: str, settings: Settings) -> dict[str, obje
         async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
             response = await client.get(url, headers=headers)
     except httpx.HTTPError as exc:
+        _auth_diag(
+            "supabase_network_error",
+            error_type=type(exc).__name__,
+            supabase_host=_safe_supabase_host(settings.supabase_url),
+        )
         raise _auth_error() from exc
     if response.status_code != 200:
+        _auth_diag(
+            "supabase_user_rejected",
+            status=response.status_code,
+            supabase_host=_safe_supabase_host(settings.supabase_url),
+        )
         raise _auth_error()
     try:
         payload = response.json()
     except ValueError as exc:
+        _auth_diag("supabase_invalid_json", supabase_host=_safe_supabase_host(settings.supabase_url))
         raise _auth_error() from exc
     if not isinstance(payload, dict):
+        _auth_diag("supabase_invalid_payload", supabase_host=_safe_supabase_host(settings.supabase_url))
         raise _auth_error()
+    _auth_diag("supabase_identity_ok", supabase_host=_safe_supabase_host(settings.supabase_url))
     return payload
 
 
@@ -122,8 +153,10 @@ def _bootstrap_profile(db: Session, payload: dict[str, object], settings: Settin
     user_id = payload.get("id")
     email = payload.get("email")
     if not isinstance(user_id, str) or not user_id:
+        _auth_diag("supabase_invalid_payload")
         raise _auth_error()
     if not isinstance(email, str) or not email:
+        _auth_diag("supabase_invalid_payload")
         raise _auth_error()
     normalized_email = email.lower()
     profile = db.get(UserProfile, user_id)
@@ -152,11 +185,13 @@ async def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     if credentials is None or credentials.scheme.lower() != "bearer":
+        _auth_diag("missing_bearer_token")
         raise _auth_error("Missing bearer token")
     auth_backend = settings.auth_backend.strip().lower()
     if auth_backend == "demo":
         user = DEMO_USERS.get(credentials.credentials)
         if not user:
+            _auth_diag("demo_token_rejected")
             raise _auth_error()
         return user
     if auth_backend == "supabase":

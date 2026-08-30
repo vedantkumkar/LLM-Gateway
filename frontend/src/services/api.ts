@@ -40,6 +40,7 @@ export interface RequestOptions<T> {
   /** Artificial latency for realistic loading states. */
   mockDelayMs?: number;
   timeoutMs?: number;
+  authToken?: string;
 }
 
 function buildUrl(path: string, query?: RequestOptions<unknown>["query"]) {
@@ -92,7 +93,7 @@ export async function request<T>(options: RequestOptions<T>): Promise<T> {
     () => controller.abort(),
     options.timeoutMs ?? REQUEST_TIMEOUT_MS,
   );
-  const token = await getRequestToken();
+  const token = options.authToken ?? (await getRequestToken());
 
   const res = await fetch(buildUrl(options.path, options.query), {
     method: options.method ?? "GET",

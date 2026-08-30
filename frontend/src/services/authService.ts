@@ -87,7 +87,7 @@ function mapBackendUser(user: {
   };
 }
 
-export async function fetchCurrentUser(): Promise<AuthUser> {
+export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> {
   const user = await request<{
     id: string;
     name: string;
@@ -96,6 +96,7 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
     department: string;
   }>({
     path: `${apiEndpoints.auth}/me`,
+    authToken: accessToken,
     mock: () =>
       demoUser as unknown as {
         id: string;
@@ -127,9 +128,12 @@ export async function login(payload: LoginPayload): Promise<AuthUser> {
     return user;
   }
   if (!supabase) throw new Error("Supabase authentication is not configured.");
-  const { error } = await supabase.auth.signInWithPassword({ email, password: payload.password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: payload.password,
+  });
   if (error) throw new Error(error.message);
-  return fetchCurrentUser();
+  return fetchCurrentUser(data.session?.access_token);
 }
 
 export async function signup(payload: SignupPayload): Promise<"verify_email" | AuthUser> {
@@ -143,7 +147,7 @@ export async function signup(payload: SignupPayload): Promise<"verify_email" | A
   });
   if (error) throw new Error(error.message);
   if (!data.session) return "verify_email";
-  return fetchCurrentUser();
+  return fetchCurrentUser(data.session.access_token);
 }
 
 export async function verifySession(): Promise<AuthUser | null> {
