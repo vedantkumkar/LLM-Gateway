@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Play, ScanSearch, ShieldAlert, ShieldCheck, ShieldHalf } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,11 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PIPELINE_STAGES } from "@/services/mockSecurityEngine";
-import {
-  PROMPT_PRESETS,
-  analyzePrompt,
-  sendSecurePrompt,
-} from "@/services/gatewayService";
+import { PROMPT_PRESETS, analyzePrompt, sendSecurePrompt } from "@/services/gatewayService";
+import { ApiError } from "@/services/api";
 import { getStoredUser } from "@/services/authService";
 import type { GatewayResponse, PipelineStageResult, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
@@ -37,7 +34,8 @@ export const Route = createFileRoute("/playground")({
       { property: "og:title", content: "Secure AI Playground" },
       {
         property: "og:description",
-        content: "Run prompts through the enterprise LLM security pipeline and inspect every stage.",
+        content:
+          "Run prompts through the enterprise LLM security pipeline and inspect every stage.",
       },
     ],
   }),
@@ -80,6 +78,24 @@ function PlaygroundPage() {
   const [result, setResult] = useState<GatewayResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastAnalyzeOnly, setLastAnalyzeOnly] = useState(false);
+  const [showSlowBackendMessage, setShowSlowBackendMessage] = useState(false);
+  const slowBackendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSlowBackendTimer = () => {
+    if (slowBackendTimer.current) {
+      clearTimeout(slowBackendTimer.current);
+      slowBackendTimer.current = null;
+    }
+    setShowSlowBackendMessage(false);
+  };
+
+  useEffect(
+    () => () => {
+      if (slowBackendTimer.current) clearTimeout(slowBackendTimer.current);
+    },
+    [],
+  );
 
   const animateStages = async (final: PipelineStageResult[]) => {
     let current = idleStages.map((s) => ({ ...s }));
@@ -99,10 +115,15 @@ function PlaygroundPage() {
 
   const run = async (analyzeOnly: boolean) => {
     if (!prompt.trim() || running) return;
+    setLastAnalyzeOnly(analyzeOnly);
     setRunning(true);
     setError(null);
     setResult(null);
     setStages(idleStages);
+    clearSlowBackendTimer();
+    slowBackendTimer.current = setTimeout(() => {
+      setShowSlowBackendMessage(true);
+    }, 5000);
     try {
       const response = analyzeOnly
         ? await analyzePrompt({ prompt, model, role, analyzeOnly: true })
@@ -110,9 +131,16 @@ function PlaygroundPage() {
       await animateStages(response.pipeline);
       setResult(response);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gateway request failed.");
+      setError(
+        e instanceof ApiError && e.status === 408
+          ? "Gateway took too long to respond. It may still be starting up - please retry."
+          : e instanceof Error
+            ? e.message
+            : "Gateway request failed.",
+      );
       setStages(idleStages);
     } finally {
+      clearSlowBackendTimer();
       setRunning(false);
     }
   };
@@ -200,10 +228,16 @@ function PlaygroundPage() {
               </Button>
             </div>
 
+            {showSlowBackendMessage && running && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Gateway is starting up. The first request may take up to a minute.
+              </p>
+            )}
+
             {error && (
               <div className="mt-4 flex items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger">
                 <span>{error}</span>
-                <Button size="sm" variant="outline" onClick={() => void run(false)}>
+                <Button size="sm" variant="outline" onClick={() => void run(lastAnalyzeOnly)}>
                   Retry
                 </Button>
               </div>
@@ -282,7 +316,10 @@ function PlaygroundPage() {
                     ["Secret Exposure", result.riskBreakdown.secretRisk],
                     ["Policy Risk", result.riskBreakdown.policyRisk],
                   ].map(([label, score]) => (
-                    <li key={label as string} className="flex items-center justify-between gap-3 text-xs">
+                    <li
+                      key={label as string}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
                       <span className="text-muted-foreground">{label}</span>
                       <RiskScore score={score as number} />
                     </li>
@@ -348,7 +385,7 @@ function PlaygroundPage() {
                 subtitle={
                   result.decision === "BLOCK"
                     ? "No data was forwarded to the provider"
-                    : result.responseScan ?? "Analyze-only mode — no provider call made"
+                    : (result.responseScan ?? "Analyze-only mode — no provider call made")
                 }
               >
                 {result.decision === "BLOCK" ? (

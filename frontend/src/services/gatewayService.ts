@@ -24,7 +24,7 @@ export async function analyzePrompt(req: GatewayRequest): Promise<GatewayRespons
     path: apiEndpoints.analyze,
     method: "POST",
     body: { message: req.prompt, model: backendModelId(req.model) },
-    timeoutMs: 40000,
+    timeoutMs: 75000,
     mock: () => runGatewayMock({ ...req, analyzeOnly: true }) as unknown as BackendGatewayResponse,
   });
   return mapGatewayResponse(req, backend, true);
@@ -44,7 +44,7 @@ export async function sendSecurePrompt(req: GatewayRequest): Promise<GatewayResp
     path: apiEndpoints.chat,
     method: "POST",
     body: { message: req.prompt, model: backendModelId(req.model) },
-    timeoutMs: 40000,
+    timeoutMs: 75000,
     mock: () => runGatewayMock({ ...req, analyzeOnly: false }) as unknown as BackendGatewayResponse,
   });
   return mapGatewayResponse(req, backend, false);
