@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Brain,
   CheckCircle2,
-  ChevronDown,
   Cpu,
   Eye,
   EyeOff,
@@ -42,8 +41,6 @@ export const Route = createFileRoute("/")({
   }),
   component: LoginPage,
 });
-
-const navItems = ["Product", "Solutions", "Resources", "Developers", "Pricing", "Company"];
 
 const benefits = [
   {
@@ -124,10 +121,15 @@ const features = [
 ];
 
 const previewMetrics = [
-  { label: "Total Requests", value: "1,284", delta: "Demo", className: "landing-preview-cyan" },
-  { label: "Blocked Requests", value: "47", delta: "Demo", className: "landing-preview-red" },
-  { label: "Redactions", value: "93", delta: "Demo", className: "landing-preview-violet" },
-  { label: "Active Policies", value: "12", delta: "Demo", className: "landing-preview-teal" },
+  {
+    label: "Total Requests",
+    value: "1,284",
+    delta: "Monitored",
+    className: "landing-preview-cyan",
+  },
+  { label: "Blocked Requests", value: "47", delta: "Blocked", className: "landing-preview-red" },
+  { label: "Redactions", value: "93", delta: "Protected", className: "landing-preview-violet" },
+  { label: "Active Policies", value: "12", delta: "Enforced", className: "landing-preview-teal" },
 ];
 
 const floatingLabels = [
@@ -143,6 +145,12 @@ function scrollToAuth() {
 
 function scrollToFeatures() {
   document.getElementById("features")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function scrollToSecurity() {
+  document
+    .getElementById("security-controls")
+    ?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function LoginPage() {
@@ -202,38 +210,25 @@ function LoginPage() {
         </a>
 
         <nav
-          className="hidden items-center gap-8 text-sm text-white/85 lg:flex"
+          className="hidden items-center gap-8 text-sm text-white/85 md:flex"
           aria-label="Landing"
         >
-          {navItems.map((item) => (
-            <a
-              key={item}
-              href={
-                item === "Pricing"
-                  ? "#gateway-access"
-                  : item === "Product"
-                    ? "#features"
-                    : "#security"
-              }
-              className="landing-nav-link inline-flex items-center gap-1.5"
-            >
-              {item}
-              {item !== "Pricing" && <ChevronDown className="size-3" aria-hidden />}
-            </a>
-          ))}
+          <button type="button" className="landing-nav-link" onClick={scrollToFeatures}>
+            Features
+          </button>
+          <button type="button" className="landing-nav-link" onClick={scrollToSecurity}>
+            Security
+          </button>
         </nav>
 
         <div className="flex items-center gap-3">
           <Button
             type="button"
             variant="ghost"
-            className="hidden text-white hover:bg-white/10 hover:text-white sm:inline-flex"
+            className="text-white hover:bg-white/10 hover:text-white"
             onClick={scrollToAuth}
           >
             Sign in
-          </Button>
-          <Button type="button" className="landing-gradient-button" onClick={scrollToAuth}>
-            Launch Demo
           </Button>
         </div>
       </header>
@@ -264,7 +259,7 @@ function LoginPage() {
                 className="landing-gradient-button landing-hero-button"
                 onClick={scrollToAuth}
               >
-                Launch Demo
+                Access Gateway
                 <ArrowRight className="ml-2 size-4" aria-hidden />
               </Button>
               <Button
@@ -332,7 +327,7 @@ function LoginPage() {
                 <div className="landing-preview-top">
                   <div>
                     <h2>Overview</h2>
-                    <p>Decorative demo preview</p>
+                    <p>Security gateway preview</p>
                   </div>
                   <span>Last 7 days</span>
                 </div>
@@ -359,7 +354,7 @@ function LoginPage() {
                   <article className="landing-chart-card">
                     <h3>Risk Distribution</h3>
                     <div className="landing-donut">
-                      <span>Demo</span>
+                      <span>Preview</span>
                     </div>
                   </article>
                 </div>
@@ -381,7 +376,7 @@ function LoginPage() {
           </aside>
         </div>
 
-        <div className="landing-value-strip">
+        <div id="security-controls" className="landing-value-strip">
           {valueStrip.map((item) => (
             <article key={item.title} className={item.className}>
               <span>
@@ -427,7 +422,9 @@ function LoginPage() {
               Access the SentinelAI Gateway
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300">
-              Sign in with your authorized enterprise account to open the security console.
+              {mode === "signup" && !USE_MOCK_API
+                ? "Create an account to request access to the security console."
+                : "Sign in with your authorized enterprise account to open the security console."}
             </p>
             <div className="landing-trust-list">
               {["Secure authentication", "Role-based access", "Audited sessions"].map((item) => (
@@ -458,6 +455,12 @@ function LoginPage() {
             <p className="mt-1 text-sm text-slate-400">
               Use your corporate credentials to continue.
             </p>
+            {mode === "signup" && !USE_MOCK_API && (
+              <p className="landing-role-note">
+                New accounts start with Employee access. An administrator can assign additional
+                permissions after account creation.
+              </p>
+            )}
 
             <form onSubmit={submit} className="mt-6 grid gap-4">
               {mode === "signup" && !USE_MOCK_API && (

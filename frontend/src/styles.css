@@ -1075,6 +1075,13 @@
   backdrop-filter: blur(18px);
 }
 
+.landing-role-note {
+  margin-top: 0.9rem;
+  color: rgb(148 163 184);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .landing-input {
   color: white;
   background: rgb(2 6 23 / 0.55);
