@@ -67,27 +67,27 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.982 0.003 250);
-  --foreground: oklch(0.21 0.03 260);
+  --background: oklch(0.975 0.012 250);
+  --foreground: oklch(0.18 0.035 260);
   --surface: oklch(1 0 0);
-  --surface-strong: oklch(0.965 0.005 250);
+  --surface-strong: oklch(0.955 0.018 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.03 260);
+  --card-foreground: oklch(0.18 0.035 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.03 260);
-  --primary: oklch(0.52 0.16 253);
+  --popover-foreground: oklch(0.18 0.035 260);
+  --primary: oklch(0.64 0.16 230);
   --primary-foreground: oklch(0.99 0.005 250);
-  --secondary: oklch(0.955 0.008 250);
-  --secondary-foreground: oklch(0.3 0.03 260);
-  --muted: oklch(0.962 0.006 250);
-  --muted-foreground: oklch(0.52 0.02 258);
-  --accent: oklch(0.95 0.03 235);
-  --accent-foreground: oklch(0.32 0.08 250);
+  --secondary: oklch(0.95 0.018 252);
+  --secondary-foreground: oklch(0.28 0.045 260);
+  --muted: oklch(0.956 0.012 250);
+  --muted-foreground: oklch(0.5 0.035 258);
+  --accent: oklch(0.94 0.035 285);
+  --accent-foreground: oklch(0.35 0.11 278);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 250);
-  --border: oklch(0.912 0.008 250);
-  --input: oklch(0.9 0.008 250);
-  --ring: oklch(0.6 0.13 250);
+  --border: oklch(0.9 0.022 250);
+  --input: oklch(0.89 0.018 250);
+  --ring: oklch(0.68 0.15 230);
 
   --safe: oklch(0.55 0.13 155);
   --safe-foreground: oklch(0.99 0.01 155);
@@ -101,45 +101,48 @@
   --info: oklch(0.58 0.13 232);
   --info-soft: oklch(0.955 0.03 232);
 
-  --chart-1: oklch(0.52 0.16 253);
-  --chart-2: oklch(0.62 0.11 200);
+  --chart-1: oklch(0.64 0.16 230);
+  --chart-2: oklch(0.58 0.16 260);
   --chart-3: oklch(0.55 0.13 155);
   --chart-4: oklch(0.68 0.15 65);
   --chart-5: oklch(0.55 0.2 25);
 
-  --sidebar: oklch(0.235 0.028 262);
+  --sidebar: oklch(0.21 0.038 262);
   --sidebar-foreground: oklch(0.93 0.01 250);
-  --sidebar-muted: oklch(0.66 0.02 255);
-  --sidebar-accent: oklch(0.31 0.045 258);
+  --sidebar-muted: oklch(0.68 0.035 255);
+  --sidebar-accent: oklch(0.31 0.07 250);
   --sidebar-accent-foreground: oklch(0.98 0.005 250);
-  --sidebar-border: oklch(0.32 0.03 260);
+  --sidebar-border: oklch(0.38 0.055 250);
 }
 
 .dark {
-  --background: oklch(0.19 0.025 262);
-  --foreground: oklch(0.95 0.008 250);
-  --surface: oklch(0.235 0.028 262);
-  --surface-strong: oklch(0.27 0.03 262);
-  --card: oklch(0.235 0.028 262);
+  --background: oklch(0.12 0.04 265);
+  --foreground: oklch(0.96 0.01 250);
+  --surface: oklch(0.17 0.045 265);
+  --surface-strong: oklch(0.22 0.05 263);
+  --card: oklch(0.18 0.045 263);
   --card-foreground: oklch(0.95 0.008 250);
-  --popover: oklch(0.235 0.028 262);
+  --popover: oklch(0.17 0.045 263);
   --popover-foreground: oklch(0.95 0.008 250);
-  --primary: oklch(0.63 0.15 250);
-  --primary-foreground: oklch(0.16 0.03 262);
-  --secondary: oklch(0.29 0.03 262);
+  --primary: oklch(0.78 0.14 220);
+  --primary-foreground: oklch(0.12 0.04 265);
+  --secondary: oklch(0.25 0.055 262);
   --secondary-foreground: oklch(0.93 0.01 250);
-  --muted: oklch(0.28 0.028 262);
-  --muted-foreground: oklch(0.7 0.02 255);
-  --accent: oklch(0.32 0.05 250);
+  --muted: oklch(0.24 0.04 262);
+  --muted-foreground: oklch(0.73 0.035 255);
+  --accent: oklch(0.33 0.09 282);
   --accent-foreground: oklch(0.95 0.01 250);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.6 0.13 250);
+  --border: oklch(0.8 0.06 230 / 18%);
+  --input: oklch(0.8 0.06 230 / 18%);
+  --ring: oklch(0.76 0.14 220);
   --safe-soft: oklch(0.35 0.07 155);
   --warn-soft: oklch(0.38 0.08 70);
   --danger-soft: oklch(0.36 0.1 25);
-  --info-soft: oklch(0.34 0.07 232);
-  --sidebar: oklch(0.21 0.026 262);
+  --info-soft: oklch(0.34 0.08 232);
+  --sidebar: oklch(0.115 0.04 265);
+  --sidebar-muted: oklch(0.72 0.04 255);
+  --sidebar-accent: oklch(0.26 0.07 250);
+  --sidebar-border: oklch(0.78 0.08 230 / 18%);
 }
 
 @layer base {
@@ -157,7 +160,7 @@
   h1,
   h2,
   h3 {
-    letter-spacing: -0.015em;
+    letter-spacing: 0;
   }
 }
 
@@ -174,6 +177,384 @@
     linear-gradient(to bottom, oklch(1 0 0 / 0.05) 1px, transparent 1px);
   background-size: 44px 44px;
 }
+
+.card-surface {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 251 255 / 0.96)), var(--color-card);
+  border-color: rgb(96 165 250 / 0.18);
+  border-radius: 0.7rem;
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.05),
+    0 10px 28px rgb(37 99 235 / 0.055);
+}
+
+.dark .card-surface {
+  background:
+    radial-gradient(circle at 92% 0%, rgb(139 92 246 / 0.05), transparent 10rem),
+    linear-gradient(180deg, rgb(8 16 40 / 0.88), rgb(8 14 33 / 0.78));
+  border-color: rgb(125 211 252 / 0.14);
+  box-shadow:
+    0 12px 34px rgb(0 0 0 / 0.22),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.app-session-screen,
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 28% 0%, rgb(14 165 233 / 0.14), transparent 24rem),
+    radial-gradient(circle at 88% 0%, rgb(168 85 247 / 0.13), transparent 24rem),
+    linear-gradient(180deg, rgb(248 251 255), rgb(241 246 255));
+}
+
+.dark .app-session-screen,
+.dark .app-shell {
+  background:
+    radial-gradient(circle at 24% 0%, rgb(6 182 212 / 0.16), transparent 24rem),
+    radial-gradient(circle at 84% 0%, rgb(168 85 247 / 0.16), transparent 24rem),
+    linear-gradient(135deg, #030716 0%, #061126 48%, #080719 100%);
+}
+
+.app-session-screen::before,
+.app-shell::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background-image:
+    linear-gradient(to right, rgb(14 165 233 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(139 92 246 / 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.app-session-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.app-session-card {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  min-width: min(22rem, 100%);
+  padding: 2rem;
+  text-align: center;
+}
+
+.app-session-logo,
+.app-sidebar-logo {
+  background:
+    linear-gradient(#06101f, #06101f) padding-box,
+    linear-gradient(145deg, #22d3ee, #2563eb 42%, #7c3aed 72%, #ec4899) border-box;
+  border: 2px solid transparent;
+  box-shadow:
+    0 0 22px rgb(34 211 238 / 0.22),
+    0 0 32px rgb(139 92 246 / 0.16);
+}
+
+.app-session-logo {
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  color: rgb(165 243 252);
+  border-radius: 0.9rem;
+}
+
+.app-workspace {
+  min-width: 0;
+}
+
+.app-page-header {
+  padding: 0.1rem 0 0.15rem;
+}
+
+.app-page-header h2 {
+  color: var(--color-foreground);
+  line-height: 1.14;
+}
+
+.dark .app-page-header h2 {
+  color: rgb(248 250 252);
+  text-shadow: 0 0 18px rgb(34 211 238 / 0.055);
+}
+
+.app-sidebar-rail {
+  border-color: var(--color-sidebar-border);
+  box-shadow: 1px 0 0 rgb(255 255 255 / 0.04);
+}
+
+.app-sidebar {
+  background:
+    radial-gradient(circle at 28% 0%, rgb(34 211 238 / 0.08), transparent 10rem),
+    radial-gradient(circle at 100% 28%, rgb(139 92 246 / 0.08), transparent 12rem),
+    linear-gradient(180deg, var(--color-sidebar), oklch(0.14 0.04 265));
+  box-shadow: inset -1px 0 0 rgb(125 211 252 / 0.12);
+}
+
+.app-sidebar-brand {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent);
+}
+
+.app-sidebar-logo {
+  border-radius: 0.75rem;
+}
+
+.app-sidebar-link {
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.app-sidebar-link:hover {
+  background: rgb(34 211 238 / 0.08);
+  border-color: rgb(125 211 252 / 0.12);
+}
+
+.app-sidebar-active {
+  color: rgb(248 250 252) !important;
+  background: linear-gradient(
+    90deg,
+    rgb(34 211 238 / 0.18),
+    rgb(37 99 235 / 0.12),
+    rgb(139 92 246 / 0.12)
+  ) !important;
+  border-color: rgb(125 211 252 / 0.22);
+  box-shadow:
+    inset 3px 0 0 #22d3ee,
+    0 0 16px rgb(34 211 238 / 0.06);
+}
+
+.app-sidebar-active svg {
+  color: rgb(103 232 249);
+}
+
+.app-sidebar-collapse {
+  background: linear-gradient(180deg, transparent, rgb(255 255 255 / 0.03));
+}
+
+.app-header {
+  background:
+    radial-gradient(circle at 72% 0%, rgb(139 92 246 / 0.08), transparent 18rem),
+    rgb(255 255 255 / 0.78);
+  border-color: rgb(96 165 250 / 0.16);
+  box-shadow: 0 6px 22px rgb(37 99 235 / 0.04);
+}
+
+.dark .app-header {
+  background:
+    radial-gradient(circle at 72% 0%, rgb(139 92 246 / 0.08), transparent 18rem),
+    rgb(5 12 30 / 0.82);
+  border-color: rgb(125 211 252 / 0.14);
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.18);
+}
+
+.app-icon-button,
+.app-profile-button,
+.app-health-chip,
+.app-env-chip {
+  border-color: rgb(96 165 250 / 0.18);
+  background: rgb(255 255 255 / 0.72);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+
+.dark .app-icon-button,
+.dark .app-profile-button,
+.dark .app-health-chip,
+.dark .app-env-chip {
+  border-color: rgb(125 211 252 / 0.16);
+  background: rgb(8 16 40 / 0.62);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+.app-icon-button:hover,
+.app-profile-button:hover {
+  border-color: rgb(34 211 238 / 0.34);
+  background: rgb(224 242 254 / 0.8);
+}
+
+.dark .app-icon-button:hover,
+.dark .app-profile-button:hover {
+  background: rgb(34 211 238 / 0.1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 0 14px rgb(34 211 238 / 0.07);
+}
+
+.app-search-input {
+  background: rgb(255 255 255 / 0.74);
+  border-color: rgb(96 165 250 / 0.2);
+}
+
+.dark .app-search-input {
+  color: rgb(248 250 252);
+  background: rgb(2 6 23 / 0.52);
+  border-color: rgb(125 211 252 / 0.16);
+}
+
+.app-search-input::placeholder {
+  color: var(--color-muted-foreground);
+}
+
+.app-search-input:focus-visible {
+  border-color: rgb(34 211 238 / 0.56);
+  box-shadow:
+    0 0 0 3px rgb(34 211 238 / 0.12),
+    0 0 22px rgb(139 92 246 / 0.08);
+}
+
+.app-search-popover,
+.app-dropdown {
+  background: rgb(255 255 255 / 0.96);
+  border-color: rgb(96 165 250 / 0.18);
+  box-shadow: 0 18px 46px rgb(15 23 42 / 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.dark .app-search-popover,
+.dark .app-dropdown {
+  background: rgb(8 16 40 / 0.94);
+  border-color: rgb(125 211 252 / 0.16);
+  box-shadow: 0 20px 54px rgb(0 0 0 / 0.34);
+}
+
+.app-search-result:hover {
+  background: rgb(224 242 254 / 0.72);
+}
+
+.dark .app-search-result:hover {
+  background: rgb(34 211 238 / 0.09);
+}
+
+.app-env-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.app-env-chip-live {
+  color: rgb(14 116 144);
+  background: rgb(224 242 254 / 0.82);
+}
+
+.dark .app-env-chip-live {
+  color: rgb(165 243 252);
+  background: rgb(8 145 178 / 0.16);
+}
+
+.app-env-chip-demo {
+  color: rgb(109 40 217);
+  background: rgb(237 233 254 / 0.82);
+}
+
+.dark .app-env-chip-demo {
+  color: rgb(216 180 254);
+  background: rgb(124 58 237 / 0.16);
+}
+
+.app-section-card {
+  overflow: hidden;
+}
+
+.app-section-card-header {
+  background: rgb(248 251 255 / 0.68);
+}
+
+.dark .app-section-card-header {
+  background: rgb(255 255 255 / 0.025);
+  border-color: rgb(125 211 252 / 0.12);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: rgb(248 250 252);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgb(148 163 184);
+}
+
+.app-shell input:not([type="checkbox"]):not([type="radio"]),
+.app-shell [role="combobox"] {
+  min-height: 2.125rem;
+  font-size: 0.8125rem;
+}
+
+.app-shell textarea {
+  font-size: 0.8125rem;
+}
+
+.app-shell label {
+  font-size: 0.8125rem;
+}
+
+.app-shell table {
+  font-size: 0.8125rem;
+}
+
+.app-shell th,
+.app-shell td {
+  height: 2.75rem;
+  padding-block: 0.55rem;
+}
+
+.dashboard-metric-grid > .card-surface {
+  min-height: 7rem;
+  padding: 0.9rem !important;
+  gap: 0.45rem !important;
+  justify-content: flex-start !important;
+}
+
+.dashboard-metric-grid > .card-surface svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.dashboard-metric-grid > .card-surface :is(h3, p) {
+  line-height: 1.18;
+}
+
+.dashboard-metric-grid > .card-surface > div:first-child {
+  gap: 0.5rem !important;
+}
+
+.dashboard-metric-grid > .card-surface [class*="size-10"],
+.dashboard-metric-grid > .card-surface [class*="size-11"],
+.dashboard-metric-grid > .card-surface [class*="size-12"] {
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+.dashboard-metric-grid > .card-surface .text-3xl {
+  font-size: 1.75rem;
+  line-height: 1.08;
+}
+
+.dashboard-metric-grid > .card-surface .text-4xl {
+  font-size: 1.875rem;
+  line-height: 1.05;
+}
+
+.dashboard-metric-grid > .card-surface .text-sm {
+  font-size: 0.75rem;
+}
+
+.dashboard-metric-grid > .card-surface .text-xs {
+  font-size: 0.6875rem;
+}
+
 .landing-page {
   --landing-container: 1480px;
   --landing-pad: 2.5rem;

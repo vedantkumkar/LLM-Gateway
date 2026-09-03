@@ -152,7 +152,7 @@ function UsersPage() {
       subheading="Manage directory members, roles and model access."
     >
       {error && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={load}>
             Retry
@@ -161,13 +161,13 @@ function UsersPage() {
       )}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="dashboard-metric-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-lg" />
+            <Skeleton key={i} className="h-[120px] rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="dashboard-metric-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           <MetricCard
             label="Total Users"
             value={summary.total.toLocaleString()}
@@ -210,9 +210,9 @@ function UsersPage() {
       <SectionCard
         title="User Directory"
         subtitle={`${filteredUsers.length} of ${users.length} members`}
-        className="mt-5"
+        className="mt-4"
       >
-        <div className="relative mb-4 max-w-sm">
+        <div className="relative mb-3 max-w-sm">
           <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
           <Input
             value={search}
@@ -286,7 +286,7 @@ function UsersPage() {
       <SectionCard
         title="RBAC Permissions Matrix"
         subtitle="Capabilities granted to each role"
-        className="mt-5"
+        className="mt-4"
         bodyClassName="p-0"
       >
         <div className="overflow-x-auto">

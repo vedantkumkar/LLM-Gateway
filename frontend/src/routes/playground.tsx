@@ -153,10 +153,10 @@ function PlaygroundPage() {
       heading="Secure AI Playground"
       subheading="Test prompts through the enterprise security pipeline."
     >
-      <div className="grid gap-5 xl:grid-cols-2">
-        <div className="grid gap-5">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4">
           <SectionCard title="Prompt Composer" subtitle="Choose a model and prompt to evaluate">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>Model</Label>
                 <Select value={model} onValueChange={setModel}>
@@ -185,7 +185,7 @@ function PlaygroundPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-1.5">
+            <div className="mt-3 grid gap-1.5">
               <Label htmlFor="prompt">Prompt</Label>
               <Textarea
                 id="prompt"
@@ -193,7 +193,7 @@ function PlaygroundPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Enter a prompt to test the security gateway..."
-                className="font-mono text-xs"
+                className="h-[190px] resize-y font-mono text-xs"
               />
             </div>
 
@@ -210,7 +210,7 @@ function PlaygroundPage() {
               ))}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button onClick={() => void run(false)} disabled={running || !prompt.trim()}>
                 {running ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -249,7 +249,7 @@ function PlaygroundPage() {
           </SectionCard>
         </div>
 
-        <div className="grid gap-5">
+        <div className="grid gap-4">
           {meta && result ? (
             <div className={cn("card-surface border p-4", meta.className)}>
               <div className="flex items-start gap-3">
@@ -279,7 +279,7 @@ function PlaygroundPage() {
               </dl>
             </div>
           ) : (
-            <div className="card-surface grid place-items-center p-10 text-center">
+            <div className="card-surface grid place-items-center p-8 text-center">
               <ShieldCheck className="mb-3 size-8 text-muted-foreground" />
               <p className="text-sm font-medium">No analysis yet</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">

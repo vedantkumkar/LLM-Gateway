@@ -52,7 +52,7 @@ function SettingSwitch({
   onCheckedChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
       <div>
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
@@ -80,7 +80,7 @@ function SliderField({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-1.5">
       <div className="flex items-center justify-between">
         <Label>{label}</Label>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">
@@ -212,7 +212,7 @@ function SettingsPage() {
       }
     >
       {error && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={load}>
             Retry
@@ -221,15 +221,15 @@ function SettingsPage() {
       )}
 
       {loading || !draft ? (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-56 rounded-lg" />
+            <Skeleton key={i} className="h-48 rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <SectionCard title="General" subtitle="Organization identity">
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="org-name">Organization</Label>
                 <Input
@@ -260,7 +260,7 @@ function SettingsPage() {
           </SectionCard>
 
           <SectionCard title="Security" subtitle="Detection thresholds and scanning controls">
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               <SliderField
                 label="Default Risk Threshold"
                 value={draft.security.defaultRiskThreshold}
@@ -355,7 +355,7 @@ function SettingsPage() {
           </SectionCard>
 
           <SectionCard title="Rate Limits" subtitle="Per-user request throttling">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <NumberField
                 label="Maximum Requests Per Minute"
                 value={draft.rateLimits.maxRequestsPerMinute}
@@ -379,7 +379,7 @@ function SettingsPage() {
           </SectionCard>
 
           <SectionCard title="Audit" subtitle="Retention and storage policy">
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               <NumberField
                 label="Audit Retention Days"
                 value={draft.audit.retentionDays}

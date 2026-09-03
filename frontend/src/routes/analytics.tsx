@@ -118,7 +118,7 @@ function AnalyticsPage() {
       }
     >
       {error && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={() => load(range)}>
             Retry
@@ -127,19 +127,19 @@ function AnalyticsPage() {
       )}
 
       {loading || !data ? (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-72 rounded-lg" />
+            <Skeleton key={i} className="h-60 rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <SectionCard
             title="Request Volume"
             subtitle={`${trendPrefix}Total, allowed and blocked requests`}
             className="lg:col-span-2"
           >
-            <div className="h-64 w-full">
+            <div className="h-60 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={data.requestVolume}
@@ -198,7 +198,7 @@ function AnalyticsPage() {
             subtitle={`${trendPrefix}Injection, PII and secret detections over time`}
             className="lg:col-span-2"
           >
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={data.threatTrends}
@@ -247,7 +247,7 @@ function AnalyticsPage() {
           </SectionCard>
 
           <SectionCard title="PII Categories" subtitle="Sensitive entity detections by type">
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data.piiCategories}
@@ -287,7 +287,7 @@ function AnalyticsPage() {
             title="Prompt Injection Attempts"
             subtitle="Blocked injection attempts by period"
           >
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data.threatTrends}
@@ -317,7 +317,7 @@ function AnalyticsPage() {
           </SectionCard>
 
           <SectionCard title="Model Usage" subtitle="Requests routed per model">
-            <div className="h-64 w-full">
+            <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -353,7 +353,7 @@ function AnalyticsPage() {
           </SectionCard>
 
           <SectionCard title="Department Usage" subtitle="Requests routed per department">
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data.departmentUsage}
@@ -390,7 +390,7 @@ function AnalyticsPage() {
           </SectionCard>
 
           <SectionCard title="Allowed vs Redacted vs Blocked" subtitle="Share of gateway decisions">
-            <div className="h-64 w-full">
+            <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -429,7 +429,7 @@ function AnalyticsPage() {
           </SectionCard>
 
           <SectionCard title="Risk Score Distribution" subtitle="Requests by risk band">
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data.riskDistribution}
@@ -462,7 +462,7 @@ function AnalyticsPage() {
             title="Average Latency"
             subtitle={`${trendPrefix}Gateway response latency over time`}
           >
-            <div className="h-64 w-full">
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={data.latencyTrend}

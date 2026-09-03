@@ -11,7 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StatusPill } from "@/components/security/badges";
 import { getNotifications } from "@/services/healthService";
 import { getGatewayHealthStatus, logout } from "@/services/authService";
 import { USE_MOCK_API } from "@/services/api";
@@ -115,22 +114,22 @@ export function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
+    <header className="app-header sticky top-0 z-30 flex h-14 flex-wrap items-center gap-2 border-b border-border bg-surface/95 px-4 py-1.5 backdrop-blur">
       <button
         type="button"
         onClick={onOpenMobileNav}
-        className="grid size-9 place-items-center rounded-md border border-border lg:hidden"
+        className="app-icon-button grid size-8 place-items-center rounded-md border border-border lg:hidden"
         aria-label="Open navigation"
       >
         <Menu className="size-4" />
       </button>
 
-      <h1 className="mr-auto text-base font-semibold tracking-tight">{title}</h1>
+      <h1 className="mr-auto text-sm font-semibold tracking-tight text-foreground">{title}</h1>
 
-      <div className="relative hidden w-72 xl:block">
+      <div className="relative hidden w-64 xl:block">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-9 pl-8 text-sm"
+          className="app-search-input h-8 pl-8 text-[13px]"
           placeholder="Search events, users, request IDs..."
           aria-label="Global search"
           value={query}
@@ -144,7 +143,7 @@ export function Header({
           }}
         />
         {(results.length > 0 || searchMessage || searching) && (
-          <div className="absolute top-11 right-0 left-0 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md">
+          <div className="app-search-popover absolute top-11 right-0 left-0 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md">
             {searching && <p className="px-2 py-1.5 text-xs text-muted-foreground">Searching...</p>}
             {searchMessage && !searching && (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">{searchMessage}</p>
@@ -154,7 +153,7 @@ export function Header({
                 key={result.id}
                 type="button"
                 onClick={() => goToResult(result)}
-                className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                className="app-search-result block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
               >
                 <span className="block font-medium">{result.title}</span>
                 <span className="block text-muted-foreground">{result.detail}</span>
@@ -164,10 +163,14 @@ export function Header({
         )}
       </div>
 
-      <StatusPill tone="info">{USE_MOCK_API ? "Demo Environment" : "Live Environment"}</StatusPill>
+      <span
+        className={cn("app-env-chip", USE_MOCK_API ? "app-env-chip-demo" : "app-env-chip-live")}
+      >
+        {USE_MOCK_API ? "Demo Environment" : "Live Environment"}
+      </span>
 
       <span
-        className="hidden items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs sm:flex"
+        className="app-health-chip hidden h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs sm:flex"
         title="Gateway health"
       >
         <span
@@ -185,7 +188,7 @@ export function Header({
           <Button
             variant="outline"
             size="icon"
-            className="relative size-9"
+            className="app-icon-button relative size-8"
             aria-label="Notifications"
           >
             <Bell className="size-4" />
@@ -196,7 +199,7 @@ export function Header({
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuContent align="end" className="app-dropdown w-80">
           <DropdownMenuLabel>Security notifications</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {notifications.map((n) => (
@@ -214,7 +217,7 @@ export function Header({
       <Button
         variant="outline"
         size="icon"
-        className="size-9"
+        className="app-icon-button size-8"
         onClick={() => setDark((d) => !d)}
         aria-label="Toggle theme"
       >
@@ -223,8 +226,8 @@ export function Header({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-9 gap-2 px-2">
-            <UserCircle2 className="size-5 text-muted-foreground" />
+          <Button variant="outline" className="app-profile-button h-8 gap-2 px-2">
+            <UserCircle2 className="size-4 text-muted-foreground" />
             <span className="hidden text-left sm:block">
               <span className="block text-xs leading-tight font-medium">{user.name}</span>
               <span className="block text-[10px] leading-tight text-muted-foreground">
@@ -234,7 +237,7 @@ export function Header({
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="app-dropdown w-56">
           <DropdownMenuLabel className="font-normal">
             <span className="block text-sm font-medium">{user.name}</span>
             <span className="block text-xs text-muted-foreground">{user.email}</span>

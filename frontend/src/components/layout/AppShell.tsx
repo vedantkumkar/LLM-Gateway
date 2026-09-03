@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { SidebarContent } from "./Sidebar";
 import { Header } from "./Header";
@@ -58,41 +59,54 @@ export function AppShell({
 
   if (!user) {
     return (
-      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
-        Verifying session…
+      <div className="app-session-screen">
+        <div className="app-session-card">
+          <span className="app-session-logo">
+            <ShieldCheck className="size-6" aria-hidden />
+          </span>
+          <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Securing your session</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Verifying identity and access permissions…
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="app-shell flex min-h-screen bg-background">
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-sidebar-border lg:block",
-          collapsed ? "w-[68px]" : "w-64",
+          "app-sidebar-rail hidden shrink-0 border-r border-sidebar-border lg:block",
+          collapsed ? "w-[60px]" : "w-[204px]",
         )}
       >
-        <div className={cn("fixed top-0 bottom-0 left-0", collapsed ? "w-[68px]" : "w-64")}>
+        <div className={cn("fixed top-0 bottom-0 left-0", collapsed ? "w-[60px]" : "w-[204px]")}>
           <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         </div>
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0">
+        <SheetContent side="left" className="w-[204px] border-sidebar-border bg-sidebar p-0">
           <SidebarContent collapsed={false} onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header title={title} user={user} onOpenMobileNav={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-5 md:px-6">
+        <main className="app-workspace flex-1 px-4 py-3 md:px-5">
           {(heading || actions) && (
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div className="app-page-header mb-3 flex flex-wrap items-end justify-between gap-3">
               <div>
                 {heading && (
                   <h2 className="text-xl font-semibold tracking-tight md:text-2xl">{heading}</h2>
                 )}
-                {subheading && <p className="mt-1 text-sm text-muted-foreground">{subheading}</p>}
+                {subheading && (
+                  <p className="mt-1 text-[13px] text-muted-foreground">{subheading}</p>
+                )}
               </div>
               {actions}
             </div>

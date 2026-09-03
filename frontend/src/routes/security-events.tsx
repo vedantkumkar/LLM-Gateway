@@ -111,7 +111,7 @@ function SecurityEventsPage() {
       }
     >
       {error && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={load}>
             Retry
@@ -120,8 +120,8 @@ function SecurityEventsPage() {
       )}
 
       <SectionCard title="Filters" subtitle="Narrow the event stream">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <div className="grid gap-1.5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-1.5 xl:col-span-2">
             <Label htmlFor="q">Search</Label>
             <div className="relative">
               <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
@@ -162,7 +162,7 @@ function SecurityEventsPage() {
       <SectionCard
         title="Event Stream"
         subtitle={`${filtered.length} of ${events.length} events`}
-        className="mt-5"
+        className="mt-4"
         bodyClassName="p-0"
       >
         {loading ? (
@@ -172,7 +172,7 @@ function SecurityEventsPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <p className="p-10 text-center text-sm text-muted-foreground">
+          <p className="p-8 text-center text-sm text-muted-foreground">
             No events match the current filters.
           </p>
         ) : (
@@ -194,7 +194,9 @@ function SecurityEventsPage() {
               <TableBody>
                 {filtered.map((e) => (
                   <TableRow key={e.id} className="cursor-pointer" onClick={() => setSelected(e)}>
-                    <TableCell className="text-xs text-muted-foreground">{e.relativeTime}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {e.relativeTime}
+                    </TableCell>
                     <TableCell>
                       <SeverityBadge severity={e.severity} />
                     </TableCell>
@@ -243,7 +245,10 @@ function SecurityEventsPage() {
                     ["Model", selected.model],
                     ["Policy Triggered", selected.policyTriggered],
                   ].map(([k, v]) => (
-                    <div key={k} className="rounded-md border border-border bg-surface-strong p-2.5">
+                    <div
+                      key={k}
+                      className="rounded-md border border-border bg-surface-strong p-2.5"
+                    >
                       <dt className="text-muted-foreground">{k}</dt>
                       <dd className="mt-0.5 font-mono text-[11px] break-all">{v}</dd>
                     </div>

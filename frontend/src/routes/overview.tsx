@@ -155,14 +155,14 @@ function OverviewPage() {
       heading="AI Security Command Center"
       subheading="Real-time visibility and protection across enterprise AI interactions."
       actions={
-        <div className="flex flex-wrap gap-1 rounded-md border border-border bg-card p-1">
+        <div className="flex h-9 flex-wrap items-center gap-1 rounded-md border border-border bg-card p-0.5">
           {ranges.map((r) => (
             <button
               key={r.value}
               type="button"
               onClick={() => setRange(r.value)}
               className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                "h-8 rounded px-2.5 text-xs font-medium transition-colors",
                 range === r.value
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted",
@@ -172,15 +172,13 @@ function OverviewPage() {
             </button>
           ))}
           {refreshing && !loading && (
-            <span className="px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              Refreshing...
-            </span>
+            <span className="px-2 text-xs font-medium text-muted-foreground">Refreshing...</span>
           )}
         </div>
       }
     >
       {error && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={() => load(range)}>
             Retry
@@ -189,14 +187,14 @@ function OverviewPage() {
       )}
 
       {loading && (!metrics || !posture) ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="dashboard-metric-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-lg" />
           ))}
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="dashboard-metric-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Total AI Requests"
               value={metrics.totalRequests.toLocaleString()}
@@ -261,15 +259,15 @@ function OverviewPage() {
             />
           </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div className="mt-3.5 grid gap-3.5 lg:grid-cols-3">
             <SectionCard
               title="Current Security Posture"
               subtitle="Aggregated control coverage across the gateway"
             >
               <div className="flex items-center gap-4">
-                <div className="relative grid size-24 shrink-0 place-items-center rounded-full border-4 border-safe/25">
+                <div className="relative grid size-16 shrink-0 place-items-center rounded-full border-4 border-safe/25">
                   <div className="text-center">
-                    <p className="font-mono text-xl font-semibold text-safe">{posture.score}</p>
+                    <p className="font-mono text-lg font-semibold text-safe">{posture.score}</p>
                     <p className="text-[10px] text-muted-foreground">/ 100</p>
                   </div>
                 </div>
@@ -283,7 +281,7 @@ function OverviewPage() {
                   </p>
                 </div>
               </div>
-              <ul className="mt-4 grid gap-1.5">
+              <ul className="mt-3 grid gap-1.5">
                 {posture.controls.map((c) => (
                   <li
                     key={c.name}
@@ -307,7 +305,7 @@ function OverviewPage() {
               }
               className="lg:col-span-2"
             >
-              <div className="h-64 w-full">
+              <div className="h-52 w-full">
                 {traffic.length === 0 ? (
                   <Skeleton className="h-full w-full rounded-md" />
                 ) : (
@@ -369,9 +367,9 @@ function OverviewPage() {
             </SectionCard>
           </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div className="mt-3.5 grid gap-3.5 lg:grid-cols-3">
             <SectionCard title="Request Decisions" subtitle="Share of gateway outcomes">
-              <div className="h-56 w-full">
+              <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -418,7 +416,7 @@ function OverviewPage() {
               subtitle="Detection counts by category"
               className="lg:col-span-2"
             >
-              <div className="h-72 w-full">
+              <div className="h-52 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={threats}
@@ -469,7 +467,7 @@ function OverviewPage() {
                 ? "Loading recent gateway decisions"
                 : "Most recent gateway decisions"
             }
-            className="mt-5"
+            className="mt-3.5"
             bodyClassName="p-0"
             action={
               <Button asChild size="sm" variant="outline">
