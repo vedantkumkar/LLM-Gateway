@@ -2,19 +2,19 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
-  Brain,
   CheckCircle2,
-  Cpu,
   Eye,
   EyeOff,
   FileCheck2,
   Loader2,
   Lock,
+  Menu,
   MessageSquare,
   ScrollText,
   ShieldCheck,
-  Sparkles,
-  Zap,
+  ShieldX,
+  UserCheck,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,39 +45,18 @@ export const Route = createFileRoute("/")({
 const benefits = [
   {
     icon: ShieldCheck,
-    title: "Secure by design",
-    detail: "Security controls before provider access",
-  },
-  {
-    icon: Zap,
-    title: "Real-time protection",
-    detail: "Inspect every AI request",
+    title: "Prompt Inspection",
+    detail: "Every request is evaluated before provider access.",
   },
   {
     icon: Lock,
-    title: "Enterprise ready",
-    detail: "Roles, policies and audit visibility",
-  },
-];
-
-const valueStrip = [
-  {
-    icon: Eye,
-    title: "Prompt Visibility",
-    detail: "Inspect AI interactions through the security gateway.",
-    className: "landing-value-cyan",
+    title: "Sensitive Data Protection",
+    detail: "PII and secrets are detected before they leave your boundary.",
   },
   {
-    icon: Sparkles,
-    title: "Sensitive Data Redaction",
-    detail: "Detect and mask sensitive information before provider processing.",
-    className: "landing-value-magenta",
-  },
-  {
-    icon: ShieldCheck,
+    icon: FileCheck2,
     title: "Policy Enforcement",
-    detail: "Apply enterprise security policies before model access.",
-    className: "landing-value-teal",
+    detail: "Role-aware controls govern prompts, models, and workflows.",
   },
 ];
 
@@ -86,57 +65,53 @@ const features = [
     icon: MessageSquare,
     title: "Prompt Protection",
     detail: "Inspect, filter, and block risky prompts before they reach any model.",
-    className: "landing-feature-purple",
   },
   {
     icon: EyeOff,
     title: "Sensitive Data Redaction",
     detail: "Detect and redact PII, secrets, payment data, and proprietary information.",
-    className: "landing-feature-pink",
-  },
-  {
-    icon: Brain,
-    title: "Model Control",
-    detail: "Route, restrict, and govern model usage across providers.",
-    className: "landing-feature-violet",
   },
   {
     icon: Lock,
-    title: "Secrets Protection",
-    detail: "Detect exposed keys and prevent sensitive material from leaving the gateway.",
-    className: "landing-feature-teal",
+    title: "Secret Detection",
+    detail: "Catch exposed API keys, credentials, and sensitive tokens in prompts.",
   },
   {
-    icon: FileCheck2,
-    title: "Compliance & Audit",
-    detail: "Full audit trails, reporting, and data retention controls.",
-    className: "landing-feature-blue",
+    icon: ShieldX,
+    title: "Policy Enforcement",
+    detail: "Apply configurable guardrails across users, roles, and models.",
+  },
+  {
+    icon: UserCheck,
+    title: "Role-Based Access",
+    detail: "Keep model access aligned with enterprise responsibilities.",
   },
   {
     icon: ScrollText,
-    title: "Policy Enforcement",
-    detail: "Apply configurable guardrails across users, roles, and models.",
-    className: "landing-feature-magenta",
+    title: "Audit Visibility",
+    detail: "Preserve searchable records for security review and governance.",
   },
 ];
 
-const previewMetrics = [
+const hudCards = [
   {
-    label: "Total Requests",
-    value: "1,284",
-    delta: "Monitored",
-    className: "landing-preview-cyan",
+    icon: ShieldCheck,
+    title: "ACCESS MONITORED",
+    detail: "All systems secure",
+    className: "landing-hud-card-left",
   },
-  { label: "Blocked Requests", value: "47", delta: "Blocked", className: "landing-preview-red" },
-  { label: "Redactions", value: "93", delta: "Protected", className: "landing-preview-violet" },
-  { label: "Active Policies", value: "12", delta: "Enforced", className: "landing-preview-teal" },
-];
-
-const floatingLabels = [
-  { icon: MessageSquare, label: "Prompts", className: "landing-float-label--prompts" },
-  { icon: Cpu, label: "Models", className: "landing-float-label--models" },
-  { icon: Lock, label: "Secrets", className: "landing-float-label--secrets" },
-  { icon: FileCheck2, label: "Compliance", className: "landing-float-label--compliance" },
+  {
+    icon: Lock,
+    title: "THREAT DETECTED",
+    detail: "Prevented · Risk mitigated",
+    className: "landing-hud-card-right",
+  },
+  {
+    icon: FileCheck2,
+    title: "POLICY ENFORCED",
+    detail: "Restricted request blocked",
+    className: "landing-hud-card-low",
+  },
 ];
 
 function scrollToAuth() {
@@ -155,6 +130,7 @@ function scrollToSecurity() {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("security@example.com");
   const [password, setPassword] = useState("demo-password");
   const [showPassword, setShowPassword] = useState(false);
@@ -195,62 +171,118 @@ function LoginPage() {
 
   return (
     <main className="landing-page min-h-screen overflow-hidden">
-      <div className="landing-grid" aria-hidden />
-      <div className="landing-particles" aria-hidden />
-      <div className="landing-streaks" aria-hidden />
-
-      <header className="landing-nav">
-        <a href="#top" className="landing-brand focus-visible:outline-none">
-          <span className="landing-logo">
-            <ShieldCheck className="size-6" aria-hidden />
-          </span>
-          <span className="text-2xl font-semibold text-white">
-            SentinelAI <span className="font-medium text-cyan-300">Gateway</span>
-          </span>
-        </a>
-
-        <nav
-          className="hidden items-center gap-8 text-sm text-white/85 md:flex"
-          aria-label="Landing"
-        >
-          <button type="button" className="landing-nav-link" onClick={scrollToFeatures}>
-            Features
-          </button>
-          <button type="button" className="landing-nav-link" onClick={scrollToSecurity}>
-            Security
-          </button>
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-white hover:bg-white/10 hover:text-white"
-            onClick={scrollToAuth}
-          >
-            Sign in
-          </Button>
-        </div>
-      </header>
-
       <section id="top" className="landing-hero">
+        <img
+          className="landing-reference-hero"
+          src="/sentinel-hacker-hero.png"
+          alt=""
+          aria-hidden
+        />
+        <header className="landing-nav">
+          <a href="#top" className="landing-brand focus-visible:outline-none">
+            <span className="landing-logo">
+              <ShieldCheck className="size-5" aria-hidden />
+            </span>
+            <span className="landing-brand-text">
+              SentinelAI <span className="font-medium text-cyan-300">Gateway</span>
+            </span>
+          </a>
+
+          <div className="landing-menu-wrap">
+            <button
+              type="button"
+              className="landing-menu-button"
+              aria-expanded={menuOpen}
+              aria-controls="landing-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span>MENU</span>
+              {menuOpen ? (
+                <X className="size-5" aria-hidden />
+              ) : (
+                <Menu className="size-5" aria-hidden />
+              )}
+            </button>
+            {menuOpen && (
+              <div id="landing-menu" className="landing-menu-panel">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToFeatures();
+                  }}
+                >
+                  Features
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToSecurity();
+                  }}
+                >
+                  Security
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToAuth();
+                  }}
+                >
+                  Access Gateway
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+        <button
+          type="button"
+          className="landing-reference-cta"
+          onClick={scrollToAuth}
+          aria-label="Access Gateway"
+        />
+        <div className="landing-cyber-scene" aria-hidden>
+          <div className="landing-code-rain landing-code-left">
+            <span>if risk.score &gt; policy.limit</span>
+            <span>mask(secret.value)</span>
+            <span>deny prompt.inject()</span>
+            <span>audit.write(event)</span>
+          </div>
+          <div className="landing-code-rain landing-code-right">
+            <span>rbac.verify(user.role)</span>
+            <span>dlp.scan(payload)</span>
+            <span>model.route(secure)</span>
+          </div>
+          <div className="landing-world-grid" />
+          <div className="landing-hooded-figure">
+            <div className="landing-hood" />
+            <div className="landing-face-shadow" />
+            <div className="landing-shoulders" />
+          </div>
+          {hudCards.map((card) => (
+            <div key={card.title} className={`landing-hud-card ${card.className}`}>
+              <card.icon className="size-6" aria-hidden />
+              <div>
+                <strong>{card.title}</strong>
+                <span>{card.detail}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="landing-hero-inner">
           <div className="landing-copy">
-            <div className="landing-badge">
-              <ShieldCheck className="size-4" aria-hidden />
-              Built for Enterprise AI
-            </div>
-
+            <p className="landing-eyebrow">Secure AI Infrastructure</p>
             <h1>
-              Your Secure
-              <br />
-              Gateway to
-              <br />
-              <span>Enterprise GenAI</span>
+              <span className="landing-headline-line">Defend enterprise AI</span>
+              <span className="landing-headline-line">
+                with <strong>intelligent security.</strong>
+              </span>
             </h1>
             <p>
-              Centralized protection for prompts, models, sensitive data, and enterprise AI
-              policies.
+              <span>Protect prompts, models, secrets, and workflows</span>
+              <span>with real-time policy enforcement and monitoring.</span>
             </p>
 
             <div className="landing-cta-row">
@@ -259,148 +291,40 @@ function LoginPage() {
                 className="landing-gradient-button landing-hero-button"
                 onClick={scrollToAuth}
               >
+                <ShieldCheck className="mr-2 size-5" aria-hidden />
                 Access Gateway
                 <ArrowRight className="ml-2 size-4" aria-hidden />
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="landing-secondary-button landing-hero-button"
-                onClick={scrollToFeatures}
-              >
-                Explore Features
-                <ArrowRight className="ml-2 size-4" aria-hidden />
-              </Button>
             </div>
 
-            <div className="landing-benefits">
-              {benefits.map((benefit) => (
-                <article key={benefit.title}>
-                  <benefit.icon className="size-6 text-cyan-300" aria-hidden />
-                  <div>
-                    <h2>{benefit.title}</h2>
-                    <p>{benefit.detail}</p>
-                  </div>
-                </article>
-              ))}
+            <div className="landing-trust-note">
+              <ShieldCheck className="size-5" aria-hidden />
+              Built for security-focused teams
             </div>
           </div>
-
-          <div className="landing-visual-zone" aria-hidden="true">
-            <div className="landing-orbit landing-orbit-outer" />
-            <div className="landing-orbit landing-orbit-middle" />
-            <div className="landing-orbit landing-orbit-inner" />
-            <div className="landing-energy-column" />
-            <div className="landing-circuit-floor">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="landing-gateway-core">
-              <div className="landing-shield-shell">
-                <span>S</span>
-              </div>
-            </div>
-            <div className="landing-platform landing-platform-one" />
-            <div className="landing-platform landing-platform-two" />
-            {floatingLabels.map((item) => (
-              <div key={item.label} className={`landing-float-label ${item.className}`}>
-                <item.icon className="size-4" />
-                {item.label}
-              </div>
-            ))}
-          </div>
-
-          <aside className="landing-dashboard-preview" aria-label="Decorative dashboard preview">
-            <div className="landing-preview-shell">
-              <div className="landing-preview-sidebar">
-                <div className="landing-preview-brand">
-                  <ShieldCheck className="size-4" aria-hidden />
-                  SentinelAI
-                </div>
-                {["Overview", "Security Events", "Policies", "Models", "Audit Logs"].map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
-              </div>
-              <div className="landing-preview-main">
-                <div className="landing-preview-top">
-                  <div>
-                    <h2>Overview</h2>
-                    <p>Security gateway preview</p>
-                  </div>
-                  <span>Last 7 days</span>
-                </div>
-
-                <div className="landing-preview-metrics">
-                  {previewMetrics.map((metric) => (
-                    <article key={metric.label} className={metric.className}>
-                      <p>{metric.label}</p>
-                      <strong>{metric.value}</strong>
-                      <span>{metric.delta}</span>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="landing-preview-grid">
-                  <article className="landing-chart-card landing-chart-wide">
-                    <h3>Traffic Over Time</h3>
-                    <svg viewBox="0 0 280 110" role="img" aria-label="Decorative traffic chart">
-                      <path d="M8 80 C 42 42, 70 95, 100 56 S 158 54, 188 38 S 238 78, 272 28" />
-                      <path d="M8 92 C 45 75, 74 88, 104 68 S 160 75, 190 58 S 236 76, 272 48" />
-                      <path d="M8 102 C 48 94, 78 98, 108 84 S 165 91, 194 78 S 240 88, 272 66" />
-                    </svg>
-                  </article>
-                  <article className="landing-chart-card">
-                    <h3>Risk Distribution</h3>
-                    <div className="landing-donut">
-                      <span>Preview</span>
-                    </div>
-                  </article>
-                </div>
-
-                <article className="landing-alert-card">
-                  <h3>Recent Security Events</h3>
-                  <p>
-                    Prompt injection blocked <span>High</span>
-                  </p>
-                  <p>
-                    PII detected and redacted <span>Medium</span>
-                  </p>
-                  <p>
-                    Restricted data policy triggered <span>High</span>
-                  </p>
-                </article>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        <div id="security-controls" className="landing-value-strip">
-          {valueStrip.map((item) => (
-            <article key={item.title} className={item.className}>
-              <span>
-                <item.icon className="size-7" aria-hidden />
-              </span>
-              <div>
-                <h2>{item.title}</h2>
-                <p>{item.detail}</p>
-              </div>
-            </article>
-          ))}
         </div>
       </section>
 
-      <section id="features" className="landing-light-section">
-        <div className="mx-auto w-full max-w-[118rem] px-6 py-10 lg:px-16">
-          <h2 className="text-center text-2xl font-semibold text-slate-950 md:text-3xl">
-            Everything you need to <span className="text-cyan-500">secure</span> and{" "}
-            <span className="text-violet-500">govern</span> GenAI
-          </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section id="security-controls" className="landing-value-strip">
+        {benefits.map((benefit) => (
+          <article key={benefit.title}>
+            <benefit.icon className="size-5" aria-hidden />
+            <div>
+              <h2>{benefit.title}</h2>
+              <p>{benefit.detail}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section id="features" className="landing-features">
+        <div>
+          <p className="landing-section-kicker">Gateway Controls</p>
+          <h2>Everything protecting your AI interactions</h2>
+          <div className="landing-feature-grid">
             {features.map((feature) => (
               <article key={feature.title} className="landing-feature-card">
-                <span className={`landing-feature-icon ${feature.className}`}>
+                <span className="landing-feature-icon">
                   <feature.icon className="size-6" aria-hidden />
                 </span>
                 <h3>{feature.title}</h3>
