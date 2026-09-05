@@ -130,6 +130,7 @@ function scrollToSecurity() {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const heroImage = `${import.meta.env.BASE_URL}sentinel-hacker-hero.png`;
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("security@example.com");
   const [password, setPassword] = useState("demo-password");
@@ -172,12 +173,7 @@ function LoginPage() {
   return (
     <main className="landing-page min-h-screen overflow-hidden">
       <section id="top" className="landing-hero">
-        <img
-          className="landing-reference-hero"
-          src="/sentinel-hacker-hero.png"
-          alt=""
-          aria-hidden
-        />
+        <img className="landing-reference-hero" src={heroImage} alt="" aria-hidden />
         <header className="landing-nav">
           <a href="#top" className="landing-brand focus-visible:outline-none">
             <span className="landing-logo">
