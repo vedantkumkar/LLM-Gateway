@@ -1873,8 +1873,8 @@
 
 .landing-reference-cta {
   position: absolute;
-  z-index: 50;
-  top: calc(50% + 173px);
+  z-index: 100;
+  top: 69.2%;
   left: 50%;
   width: 370px;
   height: 68px;
