@@ -1874,10 +1874,10 @@
 .landing-reference-cta {
   position: absolute;
   z-index: 100;
-  top: 69.2%;
+  top: max(calc(100svh * 650 / 941), calc(100vw * 650 / 1672));
   left: 50%;
-  width: 370px;
-  height: 68px;
+  width: max(370px, calc(100vw * 380 / 1672));
+  height: max(68px, calc(100vw * 72 / 1672));
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
