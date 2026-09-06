@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -135,11 +135,21 @@ function LoginPage() {
   const [email, setEmail] = useState("security@example.com");
   const [password, setPassword] = useState("demo-password");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("sentinel-remembered-email");
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberEmail(true);
+    }
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -149,6 +159,13 @@ function LoginPage() {
     }
     setError(null);
     setNotice(null);
+
+    if (rememberEmail) {
+      localStorage.setItem("sentinel-remembered-email", email);
+    } else {
+      localStorage.removeItem("sentinel-remembered-email");
+    }
+
     setLoading(true);
     try {
       if (mode === "signup" && !USE_MOCK_API) {
@@ -436,6 +453,16 @@ function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  onChange={(e) => setRememberEmail(e.target.checked)}
+                  className="size-4 rounded border-white/20 bg-white/5 accent-cyan-400"
+                />
+                <span>Remember my email</span>
+              </label>
 
               {error && (
                 <p
