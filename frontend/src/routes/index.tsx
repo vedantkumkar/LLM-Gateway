@@ -153,15 +153,20 @@ function LoginPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 6) {
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail) || password.length < 6) {
       setError("Enter a valid corporate email and a password of at least 6 characters.");
       return;
     }
+
+    setEmail(normalizedEmail);
     setError(null);
     setNotice(null);
 
     if (rememberEmail) {
-      localStorage.setItem("sentinel-remembered-email", email);
+      localStorage.setItem("sentinel-remembered-email", normalizedEmail);
     } else {
       localStorage.removeItem("sentinel-remembered-email");
     }
@@ -169,13 +174,13 @@ function LoginPage() {
     setLoading(true);
     try {
       if (mode === "signup" && !USE_MOCK_API) {
-        const result = await signup({ email, password, name });
+        const result = await signup({ email: normalizedEmail, password, name });
         if (result === "verify_email") {
           setNotice("Account created. Verify your email before signing in.");
           return;
         }
       } else {
-        await login({ email, password });
+        await login({ email: normalizedEmail, password });
       }
       await navigate({ to: "/overview" });
     } catch (err) {
