@@ -7,7 +7,10 @@ from app.auth.rbac import can_access_model
 
 RESTRICTED_DISCLOSURE_REASON = "Restricted or sensitive enterprise data disclosure/exfiltration request detected."
 SENSITIVE_ENTERPRISE_RE = re.compile(
-    r"\b(?:internal|restricted|confidential|proprietary|company dataset|corporate dataset|company data|"
+    r"\b(?:internal|restricted|confidential|proprietary|company dataset|corporate dataset|"
+    r"company data|important company data|important data of (?:the )?company|"
+    r"private company (?:information|details)|internal company (?:information|details|records)|"
+    r"confidential company (?:information|details|records)|company records|company database data|"
     r"customer records|customer data|employee records|employee data|financial records|"
     r"production api keys?|admin(?:istrator)? password|credentials|secret keys?|acquisition memo|"
     r"source code|database dump|database backup|(?:whole|entire) dataset of (?:the )?company)\b",
@@ -15,7 +18,7 @@ SENSITIVE_ENTERPRISE_RE = re.compile(
 )
 DISCLOSURE_INTENT_RE = re.compile(
     r"\b(?:external partner|outside (?:the )?company|share externally|send externally|give me|show me|"
-    r"reveal|provide me|send me|export|download|dump|extract|leak|copy|whole dataset|"
+    r"reveal|provide(?: me)?|send me|export|download|dump|extract|leak|copy|whole dataset|"
     r"entire dataset|all customer records)\b",
     re.IGNORECASE,
 )
