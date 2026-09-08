@@ -17,4 +17,4 @@ async def analyze_message(
     db: Session = Depends(get_db),
     gateway: GatewayService = Depends(get_gateway_service),
 ) -> AnalyzeResponse:
-    return gateway.analyze(request, user, db)
+    return await gateway.analyze(request, user, db)

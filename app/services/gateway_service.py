@@ -14,6 +14,7 @@ from app.security.redactor import Redactor
 from app.security.response_filter import ResponseFilter
 from app.security.risk_engine import RiskEngine
 from app.security.secret_detector import SecretDetector
+from app.security.semantic_guard import SemanticGuard
 from app.services.audit_service import AuditService
 from app.services.llm_service import LLMProvider, LLMProviderError
 
@@ -28,6 +29,7 @@ class GatewayService:
         self.redactor = Redactor()
         self.risk_engine = RiskEngine()
         self.policy_engine = PolicyEngine(settings)
+        self.semantic_guard = SemanticGuard(settings)
         self.response_filter = ResponseFilter()
         self.audit_service = AuditService()
 
@@ -66,13 +68,14 @@ class GatewayService:
             return None
         return db.get(GatewaySettingsRecord, "default")
 
-    def analyze(self, request: ChatRequest, user: User, db: Session | None = None) -> AnalyzeResponse:
+    async def analyze(self, request: ChatRequest, user: User, db: Session | None = None) -> AnalyzeResponse:
         start = perf_counter()
         request_id = str(uuid4())
         secrets = self.secret_detector.detect(request.message)
         pii = self.pii_detector.suppress_overlaps(self.pii_detector.detect(request.message), secrets)
         detections = pii + secrets
         injection = self.injection_detector.analyze(request.message)
+        semantic = await self.semantic_guard.analyze(request.message)
         policy = self.policy_engine.decide(
             user,
             request.model,
@@ -80,6 +83,7 @@ class GatewayService:
             detections,
             injection,
             self._effective_policies(db),
+            semantic,
         )
         risk = self.risk_engine.calculate(detections, injection, policy.policy_score)
         sanitized = self.redactor.redact(request.message, detections) if policy.decision != "ALLOW" else request.message
@@ -97,7 +101,7 @@ class GatewayService:
 
     async def chat(self, request: ChatRequest, user: User, db: Session) -> ChatResponse:
         start = perf_counter()
-        analysis = self.analyze(request, user, db)
+        analysis = await self.analyze(request, user, db)
         response_text: str | None = None
         response_status = "NOT_CALLED"
         success = True

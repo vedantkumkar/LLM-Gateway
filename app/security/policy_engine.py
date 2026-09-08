@@ -4,6 +4,7 @@ import re
 from app.config import Settings
 from app.schemas.schemas import Detection, InjectionAnalysis, User
 from app.auth.rbac import can_access_model
+from app.security.semantic_guard import SEMANTIC_BLOCK_REASON, SemanticIntentAnalysis
 
 RESTRICTED_DISCLOSURE_REASON = "Restricted or sensitive enterprise data disclosure/exfiltration request detected."
 SENSITIVE_ENTERPRISE_RE = re.compile(
@@ -57,6 +58,7 @@ class PolicyEngine:
         detections: list[Detection],
         injection: InjectionAnalysis,
         controls: EffectivePolicyConfig | None = None,
+        semantic: SemanticIntentAnalysis | None = None,
     ) -> PolicyDecision:
         controls = controls or EffectivePolicyConfig(
             injection_threshold=self.settings.prompt_injection_block_threshold,
@@ -85,6 +87,12 @@ class PolicyEngine:
             if controls.dlp_action == "Block":
                 return PolicyDecision("BLOCK", [RESTRICTED_DISCLOSURE_REASON], 100)
             reasons.append(RESTRICTED_DISCLOSURE_REASON)
+            policy_score = max(policy_score, 85)
+
+        if controls.dlp_enabled and semantic is not None and semantic.should_block:
+            if controls.dlp_action == "Block":
+                return PolicyDecision("BLOCK", [SEMANTIC_BLOCK_REASON], 100)
+            reasons.append(SEMANTIC_BLOCK_REASON)
             policy_score = max(policy_score, 85)
 
         pii_types = {item.type for item in detections if item.category == "PII"}
