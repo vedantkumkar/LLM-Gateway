@@ -1,4 +1,5 @@
 from app.api import state
+from app.auth.rbac import ROLE_PERMISSIONS
 from app.config import get_settings
 from app.database.database import SessionLocal
 from app.database.models import UserProfile
@@ -49,7 +50,7 @@ def test_supabase_config_missing_returns_safe_401_and_diagnostic(client, monkeyp
     get_settings.cache_clear()
 
 
-def test_supabase_valid_user_bootstraps_employee_profile(client, monkeypatch):
+def test_supabase_valid_user_bootstraps_security_analyst_profile(client, monkeypatch):
     class FakeResponse:
         status_code = 200
 
@@ -80,12 +81,24 @@ def test_supabase_valid_user_bootstraps_employee_profile(client, monkeypatch):
     response = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer access-token"})
 
     assert response.status_code == 200
-    assert response.json()["role"] == "employee"
+    assert response.json()["role"] == "security_analyst"
     with SessionLocal() as db:
         profile = db.get(UserProfile, "supabase-user-1")
         assert profile is not None
-        assert profile.role == "employee"
+        assert profile.role == "security_analyst"
     get_settings.cache_clear()
+
+
+def test_security_analyst_permissions_remain_unchanged():
+    assert ROLE_PERMISSIONS["security_analyst"] == {
+        "audit:read_all",
+        "metrics:read",
+        "models:read",
+        "playground:use",
+        "users:read",
+        "policies:read",
+        "policies:write",
+    }
 
 
 def test_invalid_supabase_token_returns_401(client, monkeypatch, caplog):
@@ -194,7 +207,7 @@ def test_client_metadata_cannot_self_assign_role(client, monkeypatch):
     response = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer access-token"})
 
     assert response.status_code == 200
-    assert response.json()["role"] == "employee"
+    assert response.json()["role"] == "security_analyst"
     get_settings.cache_clear()
 
 

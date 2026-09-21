@@ -177,7 +177,7 @@ def _bootstrap_profile(db: Session, payload: dict[str, object], settings: Settin
             id=user_id,
             email=normalized_email,
             name=_name_from_supabase(payload, normalized_email),
-            role="admin" if normalized_email in settings.bootstrap_admin_email_set else "employee",
+            role="admin" if normalized_email in settings.bootstrap_admin_email_set else "security_analyst",
             department="Operations",
             status="active",
         )

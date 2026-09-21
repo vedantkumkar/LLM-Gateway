@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   FileCheck2,
+  Info,
   Loader2,
   Lock,
   Menu,
@@ -399,7 +400,7 @@ function LoginPage() {
             </p>
             {mode === "signup" && !USE_MOCK_API && (
               <p className="landing-role-note">
-                New accounts start with Employee access. An administrator can assign additional
+                New accounts start with Security Analyst access. An administrator can adjust
                 permissions after account creation.
               </p>
             )}
@@ -499,6 +500,19 @@ function LoginPage() {
                 </Button>
               )}
             </form>
+
+            <div className="mt-4 flex gap-3 rounded-md border border-cyan-300/20 bg-cyan-300/5 p-3 text-xs leading-5 text-slate-300">
+              <Info className="mt-0.5 size-4 shrink-0 text-cyan-300" aria-hidden />
+              <div>
+                <p className="font-semibold text-cyan-100">Demo environment notice</p>
+                <p className="mt-1">
+                  This project uses free-tier Supabase and Render services, so the first login or
+                  page request may take a few seconds while services become active. If sign-in does
+                  not respond, press Ctrl + Shift + R to hard refresh and try again. Some dashboard
+                  pages may take a few seconds on the first request.
+                </p>
+              </div>
+            </div>
 
             {USE_MOCK_API && (
               <div className="mt-4 rounded-md border border-white/10 bg-white/[0.04] p-3">
